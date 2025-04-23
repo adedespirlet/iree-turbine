@@ -413,6 +413,39 @@ def handle_binary_op(op):
     return decorator
 
 
+
+def handle_scatter_op(op):
+    def decorator(scatter_fn: Callable[[Value, Value], OpResult]):
+        @handle_op(op)
+        def handle_generic_scatter(emitter: WaveEmitter, node: fx.Node):
+            try:
+                src, index, dim = node.args
+            except ValueError as e:
+                raise ValidationError("Malformed arguments") from e
+            src = cast_py_value(emitter, src)
+            index = cast_py_value(emitter, index)
+            dim = cast_py_value(emitter, dim)
+
+          
+
+            src = src.ir_value
+            index = index.ir_value
+            dim = dim.ir_value
+            result = scatter_fn(src, index, dim,emitter.options)
+
+            emitter.bind_node_proxy(node, IRProxyValue(result))
+
+    return decorator
+
+@handle_scatter_op(scatter_add)
+def scatter_add(src: Value, index: Value, dim: Value, options: WaveCompileOptions) -> OpResult:
+
+    for i in range(VectorType(arg.type).shape[0]):
+        single=vector_d.extract(value,i)
+        llvm_d.atomicrmw(single,"add",...)
+        vector_d.insert(..)
+        
+
 def get_fast_math_flags(options: WaveCompileOptions) -> int | None:
     """
     This function returns the fast math flags for the given options.
