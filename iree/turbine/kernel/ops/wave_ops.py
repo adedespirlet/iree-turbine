@@ -229,7 +229,7 @@ def select(cond: "Register", if_true: "Register", if_false: "Register") -> "Regi
     ...
 
 
-def scatter_add(src: "Register", index:"Register", dim: "Register") -> "Register":
+def scatter_add(src: "Register", index:"Register", dim: IndexExpr, dst: "Memory", NUM_ROWS: IndexExpr , NUM_COLS:IndexExpr) -> "Register":
     ...
 
 def define_op(op_name: str) -> Callable[[T], T]:
@@ -2069,6 +2069,9 @@ class ScatterOp(CustomOp,ABC):
     src: fx.Node
     index: fx.Node
     dim:  IndexExpr
+    dst: fx.Node
+    NUM_ROWS: IndexExpr
+    NUM_COLS: IndexExpr
 
     def infer_type(self):
         src_type = get_custom(self.src).type
