@@ -413,7 +413,7 @@ def handle_binary_op(op):
     return decorator
 
 def handle_scatter_op(op):
-    def decorator(scatter_fn: Callable[[Value, Value, Value, Value, Value, Value, WaveCompileOptions], OpResult]):
+    def decorator(scatter_fn: Callable[[Value, Value, Value, Value, Value, Value], OpResult]):
         @handle_op(op)
         def handle_generic_scatter(emitter: WaveEmitter, node: fx.Node):
             try:
@@ -434,32 +434,63 @@ def handle_scatter_op(op):
 
     return decorator
 
+
+
 @handle_scatter_op(scatter_add)
-def scatter_add(dst: Value, index: Value, src: Value, dim: Value, num_rows: Value, num_cols: Value, options: WaveCompileOptions) -> OpResult:
-    vec_type = VectorType(src.type)
-    elements_per_thread = vec_type.shape[0]
+def handle_scatter_add(
+   src: Value,
+   index: Value,
+   dim: Value,
+   dst: Value, 
+   num_edges: Value,
+   num_cols: Value,  
+   options: WaveCompileOptions,
+) -> OpResult:
+   """
+   Real-world scatter in Pifold:
+   - SRC   : [#edges, #features]
+   - INDEX : [#edges]
+   - DEST  : [#nodes, #features]
+  
+   This op performs:
+       for edge i, feature j:
+           dest[index[i], j] += src[i, j]
+   """
 
-    tid = gpu_d.thread_id(gpu_d.Dimension(0))  # assuming 1-D thread but how do i knwo?
-    offset = arith_d.muli(tid, arith_d.constant(IntegerType.get_signless(32), elements_per_thread))
+   vec_type = VectorType(src.type)
+   elements_per_thread = vec_type.shape[0]
 
-    #select row or column offset based on dimension
-    dim = arith_d.index_cast(IntegerType.get_signless(32), dim)
-    dim_zero = arith_d.constant(IntegerType.get_signless(32), 0)
-    is_dim_zero = arith_d.cmpi(arith_d.CmpIPredicate.eq, dim, dim_zero)
-    size = arith_d.select(is_dim_zero, num_cols, num_rows)
+   # Get global thread offset
+   tid = gpu_d.thread_id(gpu_d.Dimension(0))  # Assumes 1D thread layout but maybe its 2D since we have M,N?
+   offset = arith_d.muli(
+       tid, arith_d.constant(IntegerType.get_signless(32), elements_per_thread)
+   )
 
-    for i in range(elements_per_thread):
-        global_idx = arith_d.addi(offset, arith_d.constant(IntegerType.get_signless(32), i))
-        row_col_index = arith_d.floordivsi(global_idx, size)
-        index_elem = vector_d.extract(index, i)
-        src_elem = vector_d.extract(src, i)
+   dim = arith_d.index_cast(IntegerType.get_signless(32), dim)
+   dim_zero = arith_d.constant(IntegerType.get_signless(32), 0)
+   is_dim_zero = arith_d.cmpi(arith_d.CmpIPredicate.eq, dim, dim_zero)
+   size = arith_d.select(is_dim_zero, num_cols, num_edges)
 
-        # dst_address = base + (row_col_idx * row_col_size + index_elem) * bytes per element
-        element_offset = arith_d.addi(arith_d.muli(row_col_index, size), index_elem)
-        ptr = memref_d.getelementptr(dst, [element_offset])
-        llvm_d.atomicrmw("add", ptr, src_elem, ordering="monotonic")
 
-    return None
+   for i in range(elements_per_thread):
+       global_idx = arith_d.addi(
+           offset, arith_d.constant(IntegerType.get_signless(32), i)
+       )
+
+       feat_id = arith_d.remui(global_idx, num_cols)
+       index_elem = vector_d.extract(index,i)
+       src_elem = vector_d.extract(src, i)
+
+       # dest[ index_elem, feat_id ] = base + (index_elem * num_cols + feat_id)
+       offset_elem = arith_d.addi(
+           arith_d.muli(index_elem, size),
+           feat_id
+       )
+       ptr = memref_d.getelementptr(dst, [offset_elem])
+       llvm_d.atomicrmw("add", ptr, src_elem, ordering="monotonic")
+
+   return None
+
 
 
 def get_fast_math_flags(options: WaveCompileOptions) -> int | None:
