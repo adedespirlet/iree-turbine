@@ -229,6 +229,9 @@ def select(cond: "Register", if_true: "Register", if_false: "Register") -> "Regi
     ...
 
 
+def scatter_add(src: "Register", index:"Register", dim: IndexExpr, dst: "Memory", NUM_ROWS: IndexExpr , NUM_COLS:IndexExpr) -> "Register": 
+    ...
+
 def define_op(op_name: str) -> Callable[[T], T]:
     def decorator(cls: T) -> T:
         cls.tkw_op_name = op_name
@@ -2059,3 +2062,22 @@ class Reshape(CustomOp, ABC):
 
     def infer_type(self):
         self.type = get_custom(_to_sequence(self.args)[0]).type
+
+
+# @define_interface_op("scatter_add")
+# @dataclass
+# class ScatterOp(CustomOp,ABC):
+#     src: fx.Node
+#     index: fx.Node
+#     dim1:  IndexExpr
+#     dst: fx.Node
+#     NUM_ROWS: IndexExpr
+#     NUM_COLS: IndexExpr
+ 
+#     def infer_type(self):
+#         src_type = get_custom(self.src).type
+#         #dynamic_size = max(index) + 1
+#     @property
+#     def indexing_dims(self) -> list[IndexExpr]:
+#         return get_custom(self.src).indexing_dims
+ 
