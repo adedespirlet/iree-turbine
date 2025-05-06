@@ -191,9 +191,10 @@ def test_read_actual_data():
         a_reg = tkw.read(a, elements_per_thread=LOAD_ELEMS_PER_THREAD,mapping=mapping)
         
         index_reg=tkw.read(index,elements_per_thread=LOAD_ELEMS_PER_THREAD)
-        #tkw.scatter_add(a_reg,index_reg,dim=0,memory=b,mapping=mapping,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+        tkw.scatter_add(a_reg,index_reg,dim=0,memory=b,mapping=mapping,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+
         #index_reg = tkw.broadcast(index_reg, target_shape=[M, N])
-        tkw.write(a_reg,b,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
+        #tkw.write(a_reg,b,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
         return 
     
     options = WaveCompileOptions(
@@ -226,8 +227,8 @@ def test_read_actual_data():
     input = device_arange(64, dtype=torch.int32).reshape(64).contiguous()
     read_fn(input,index,output)
 
-    # print("Input a:")
-    # print(input.cpu())
+    print("Input a:")
+    print(input.cpu())
     print("Input index:")
     print(index.cpu())
     print("Output:")  
@@ -240,9 +241,9 @@ def test_read_actual_data():
         baseline_output = baseline_output.scatter_add(dim=0, index=index, src=input)
         return baseline_output
         
-    #torch_output=scatter_baseline(input,index)
-    # print("torch_output:")
-    # print(torch_output)
+    torch_output=scatter_baseline(input,index)
+    print("torch_output:")
+    print(torch_output)
 
     #torch.testing.assert_close(output, torch_output)
 
