@@ -36,9 +36,10 @@ from ...compiler.vector_codegen import (
     cast_kernel_buffer,
     cast_py_literal,
     cast_vector,
+    cast_py_value,
 )
 
-from ...ops.wave_ops import get_custom, read, write, CustomOp
+from ...ops.wave_ops import get_custom, read, write, scatter_add, CustomOp
 
 from ..utils.general_utils import find_index_bounds, get_fastest_index
 from ..utils.symbol_utils import safe_subs, subs_idxc
@@ -103,12 +104,13 @@ def _build_start_indices(
     dynamic_values: dict[IndexExpr, Any] = {},
 ) -> tuple[list[OpResult], list[OpResult], list[OpResult]]:
     start_indices = _get_start_indices(src_indices)
+    print("start_indices",start_indices)
     split_indices = [_split_index(i) for i in start_indices]
     subs = add_emitter_subs(emitter, dynamic_values)
     indices = [gen_sympy_index(subs, i) for i in start_indices]
     indices_wg = [gen_sympy_index(subs, i[0]) for i in split_indices]
     indices_th = [gen_sympy_index(subs, i[1]) for i in split_indices]
-
+    
     return indices, indices_wg, indices_th
 
 
@@ -182,9 +184,10 @@ def _construct_gather_scatter_indices(
         ), "non-identity input mapping is not supported yet"
         index_mapping = mapping.map_output_indices(symbolic_shape)
 
+
     idxc = IndexingContext.current()
     index_mapping = tuple(i.subs(idxc.subs) for i in index_mapping)
-
+  
     iters = mapping.iters
 
     # As we only support identity input/output mapping for now, we can directly
@@ -192,10 +195,14 @@ def _construct_gather_scatter_indices(
     subs = [
         (sym, expr.start) for sym, expr in zip(iters.keys(), index.values())
     ] + list(idxc.subs.items())
+    
+    
 
     # Contruct input/output index, substituting iterators in input mapping with
     # expanded index.
     result_index = {key: m.subs(subs) for key, m in zip(symbolic_shape, index_mapping)}
+
+    #print("result_index",result_index)
 
     mask = _build_mask(emitter, index, elements_per_thread)
     if mask is None:
@@ -203,7 +210,6 @@ def _construct_gather_scatter_indices(
             [elements_per_thread], IntegerType.get_signless(1)
         )
         mask = _constant_mask(mask_vec_type)
-
     def extract0(src):
         static_pos = [0] * src.type.rank
         return vector_d.extract(src, static_position=static_pos, dynamic_position=[])
@@ -219,6 +225,8 @@ def _construct_gather_scatter_indices(
         return start_indices, start_indices_wg, start_indices_th, None, mask
 
     start_indices = _get_start_indices(result_index)
+    #print("start_indices",start_indices)
+
     start_indices_orig = _get_start_indices(index)
     fastest_dim = get_fastest_index(index)
     need_dynamic_offsets = False
@@ -615,7 +623,6 @@ def _create_vec_read_write(
             vector_d.scatter(mem, start_indices, offsets_vec, mask, value)
             return
 
-
 @handle_op(read)
 def handle_read(emitter: WaveEmitter, node: fx.Node):
     # This is similar to tkl.store with fixed start indices for now.
@@ -706,6 +713,7 @@ def handle_write(emitter: WaveEmitter, node: fx.Node):
     except ValueError as e:
         raise ValidationError("Malformed arguments") from e
 
+    print("handle_write")
     # memory has no IR node yet.
     kb_dest, kb_ir_type, kb_py_type = cast_kernel_buffer(emitter, memory)
     insert_vector = cast_vector(emitter, register, element_type=kb_ir_type.element_type)
@@ -731,6 +739,7 @@ def handle_write(emitter: WaveEmitter, node: fx.Node):
             emitter, index
         )
         mask = _build_mask(emitter, index, elements_per_thread)
+
         _create_vec_read_write(
             emitter,
             output_shape,
@@ -785,3 +794,80 @@ def handle_write(emitter: WaveEmitter, node: fx.Node):
             mask,
             offsets_vec,
         )
+
+
+@handle_op(scatter_add)
+def handle_scatter_add(emitter: WaveEmitter, node: fx.Node):
+    """
+    memref.atomic_rmw requires as input the correct indices into the 
+    destination memref where the atomic update should occur.
+
+    I compute the destination indices based on node.index.
+    node.index partitions the output memref across threads.
+    Then for each thread I replace the scatter dimension
+    with the dynamic index value from the input. 
+
+    dst[i][j]=> dst[index[i]][j]
+
+    """
+    try:
+        register_src,register_idx, dim, memory,mapping ,elements_per_thread= node.args  
+    except ValueError as e:
+        raise ValidationError("Malformed arguments") from e
+
+
+    output_shape = _get_symbolic_shape(memory)
+    elements_per_thread = int(cast_py_literal(emitter, elements_per_thread))
+    cast_vector(emitter, register_idx, element_type=IndexType.get()) 
+
+    # Build output indices
+    index_mapping = mapping.map_output_indices(output_shape)
+
+    idxc = IndexingContext.current()
+    index_mapping = tuple(i.subs(idxc.subs) for i in index_mapping)
+    iters = mapping.iters
+    index = node.index
+    print("index:",index)
+    subs = [
+        (sym, expr.start) for sym, expr in zip(iters.keys(), index.values())
+    ] + list(idxc.subs.items())
+    
+    print("subs",subs)
+    #result_index {B: $WG2, M: 2*$T0 + 128*$WG0 + 128*floor($T0/64), N: $WG1}
+    result_index = {key: m.subs(subs) for key, m in zip(output_shape, index_mapping)}
+
+    mask = _build_mask(emitter, index, elements_per_thread)
+    if mask is None:
+        mask_vec_type = VectorType.get([elements_per_thread], IntegerType.get_signless(1))
+        mask = _constant_mask(mask_vec_type)
+    print("result_index",result_index)
+    
+    ##TODO: should not compute the indices at scatter location because its not necessary
+    start_indices, start_indices_wg, start_indices_th = _build_start_indices(
+        emitter, result_index
+    )
+
+    register_idx = cast_py_value(emitter, register_idx).ir_value
+    register_src = cast_py_value(emitter, register_src).ir_value
+    memory = cast_py_value(emitter, memory).ir_value
+
+    results = []
+    for i in range(elements_per_thread):
+        index_elem = vector_d.extract(register_idx, static_position=[i], dynamic_position=[])
+        index_elem = arith_d.index_cast(IndexType.get(), index_elem)
+        reg_elem = vector_d.extract(register_src, static_position=[i], dynamic_position=[])
+        indices = list(start_indices)
+        if dim >= len(indices):
+            raise ValueError(f"Invalid scatter dim {dim} for rank-{len(indices)} memory")
+
+        # Replace the scatter dim in result_index with index[i]
+        #result_index {B: $WG2, M: index[i], N: $WG1}
+        indices[dim] = index_elem
+        result = memref_d.atomic_rmw(arith_d.AtomicRMWKind.addi, reg_elem, memory, indices)
+        results.append(result)
+
+    # Create a vector from the results
+    result_type = VectorType.get([elements_per_thread], register_src.type.element_type)
+    result_vector = vector_d.from_elements(result_type, results)
+
+    emitter.bind_node_proxy(node, IRProxyValue(result_vector))
