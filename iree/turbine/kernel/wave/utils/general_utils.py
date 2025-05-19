@@ -164,11 +164,13 @@ def find_index_bounds(
         if dim not in index:
             continue
 
-        bound = constraint.get_index_bound(vector_shapes.get(dim, None))
-        if bound is not None:
-            bounds[dim] = get_min_expr(bounds.get(dim, None), bound)
+        work_size = constraint.work_bound
+        ##Get rid of automatically turning off masking when tile sze ==workgroup size
+        # if subs_idxc(work_size) >= subs_idxc(dim):
+            #continue
 
-    if not bounds:
+        bounds.append(dim)
+    if len(bounds) == 0:
         return None
 
     return bounds
