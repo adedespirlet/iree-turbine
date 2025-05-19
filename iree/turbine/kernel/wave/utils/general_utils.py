@@ -166,11 +166,11 @@ def find_index_bounds(
             continue
 
         work_size = constraint.work_bound
-        if subs_idxc(work_size) == subs_idxc(dim):
-            continue
+        ##Get rid of automatically turning off masking when tile sze ==workgroup size
+        # if subs_idxc(work_size) >= subs_idxc(dim):
+            #continue
 
         bounds.append(dim)
-
     if len(bounds) == 0:
         return None
 

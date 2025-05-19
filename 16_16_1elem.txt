@@ -1,0 +1,707 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.5.0
+rootdir: /home/aurore/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/scatter_test.py F                            [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_read_actual_data _____________________________
+
+    @require_e2e
+    def test_read_actual_data():
+        # Constraints
+        constraints = [
+            tkw.HardwareConstraint(threads_per_wave=64, waves_per_block=(1, 1, 1), vector_shapes={M: 1, N: 1}),
+            tkw.WorkgroupConstraint(M, BLOCK_M, 0),
+            tkw.WorkgroupConstraint(N, BLOCK_N, 1),
+            tkw.WaveConstraint(M, BLOCK_M),
+            tkw.WaveConstraint(N, BLOCK_N),
+        ]
+    
+        # Mapping (identity)
+        i = tkw.IndexMapping.iterator(0)
+        j = tkw.IndexMapping.iterator(1)
+        mapping = tkw.IndexMapping(
+            num_iterators=2,
+            inputs={M: i, N: j},
+            outputs={M: i, N: j},
+        )
+    
+        # Define kernel
+        @tkw.wave(constraints)
+        def read_kernel(
+            a: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+            index: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+            b: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+        ):
+            a_reg = tkw.read(a, elements_per_thread=LOAD_ELEMS_PER_THREAD,mapping=mapping)
+            # index_reg=tkw.read(index,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+            # tkw.scatter_add(a_reg,index_reg,dim=0,memory=b,mapping=mapping,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+    
+            tkw.write(a_reg,b,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
+            #index_reg = tkw.read(index, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+        # Compile kernel
+        options = WaveCompileOptions(
+            subs={
+                M: 16,
+                N: 16,
+                BLOCK_M: 16,
+                BLOCK_N: 16,
+                LOAD_ELEMS_PER_THREAD: 1,
+                STORE_ELEMS_PER_THREAD: 1,
+                ADDRESS_SPACE: tkl.AddressSpace.SHARED_MEMORY.value,
+    
+            },
+            compile_to_mlir=True,
+            canonicalize=True,
+            run_bench=False,
+        )
+        options = set_default_run_config(options)
+    
+        read_fn = wave_compile(options, read_kernel)
+        print(read_fn.asm)
+    
+    
+        # Input tensors
+    
+        #index = device_randint(64, dtype=torch.int32).reshape(8, 8)
+        index=device_randint(0, 64, (16, 16), dtype=torch.int32)
+        output = device_zeros((16, 16), dtype=torch.int32).reshape(16, 16).contiguous()
+        input = device_arange(16*16, dtype=torch.int32).reshape(16, 16).contiguous()
+    
+        # index=device_randint(0, 64, (32, 32), dtype=torch.int32)
+        # output = device_zeros((32, 32), dtype=torch.int32).reshape(32, 32).contiguous()
+        # input = device_ones(32*32, dtype=torch.int32).reshape(32, 32).contiguous()
+        # Run kernel
+>       read_fn(input,index,output)
+
+tests/kernel/wave/attention/scatter_test.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+iree/turbine/kernel/wave/compile.py:30: in __call__
+    return self.invoke(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <iree.turbine.kernel.wave.compile.WaveKernel object at 0x7ca7c27d93f0>
+args = (tensor([[  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,
+          14,  15],
+        [ 16,  17,... 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], device='cuda:0',
+       dtype=torch.int32))
+kwargs = {}, scalar_args = [], kernel_inputs = [], kernel_outputs = []
+usage_idx = 0
+arg = tensor([[  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,
+          14,  15],
+        [ 16,  17, ...1, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253,
+         254, 255]], device='cuda:0', dtype=torch.int32)
+
+    def invoke(self, *args, **kwargs):
+        """
+        Invokes the wave kernel with the given arguments.
+        Returns the assembly code of the compiled kernel.
+        """
+    
+        # Segregate args into kernel tensor and scalars.
+        scalar_args = []
+        kernel_inputs, kernel_outputs = [], []
+    
+        # Partition arguments into kernel inputs and outputs.
+        # ToDo: we should expose the `usage` as a property in binding desc
+        #       so that we can reduce the code and use `zip``.
+        usage_idx = 0
+        for arg in args:
+            if not isinstance(arg, torch.Tensor):
+                scalar_args.append(arg)
+                continue
+>           usage = self.options.kernel_usages[usage_idx]
+E           TypeError: 'NoneType' object is not subscriptable
+
+iree/turbine/kernel/wave/compile.py:50: TypeError
+----------------------------- Captured stdout call -----------------------------
+#map = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16)>
+#map1 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 1)>
+#map2 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 2)>
+#map3 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 3)>
+#map4 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 4)>
+#map5 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 5)>
+#map6 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 6)>
+#map7 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 7)>
+#map8 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 8)>
+#map9 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 9)>
+#map10 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 10)>
+#map11 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 11)>
+#map12 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 12)>
+#map13 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 13)>
+#map14 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 14)>
+#map15 = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16 + 15)>
+#translation = #iree_codegen.translation_info<pipeline = None workgroup_size = [64, 1, 1] subgroup_size = 64>
+module attributes {transform.with_named_sequence} {
+  stream.executable private @read_kernel {
+    stream.executable.export public @read_kernel workgroups() -> (index, index, index) {
+      %c1 = arith.constant 1 : index
+      stream.return %c1, %c1, %c1 : index, index, index
+    }
+    builtin.module {
+      func.func @read_kernel(%arg0: !stream.binding, %arg1: !stream.binding, %arg2: !stream.binding) attributes {translation_info = #translation} {
+        %c15 = arith.constant 15 : index
+        %c14 = arith.constant 14 : index
+        %c13 = arith.constant 13 : index
+        %c12 = arith.constant 12 : index
+        %c11 = arith.constant 11 : index
+        %c10 = arith.constant 10 : index
+        %c9 = arith.constant 9 : index
+        %c8 = arith.constant 8 : index
+        %c7 = arith.constant 7 : index
+        %c6 = arith.constant 6 : index
+        %c5 = arith.constant 5 : index
+        %c4 = arith.constant 4 : index
+        %c3 = arith.constant 3 : index
+        %c2 = arith.constant 2 : index
+        %c1 = arith.constant 1 : index
+        %c0 = arith.constant 0 : index
+        %thread_id_x = gpu.thread_id  x
+        %0 = stream.binding.subspan %arg0[%c0] : !stream.binding -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %1 = affine.apply #map()[%thread_id_x]
+        %2 = vector.load %0[%1, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %3 = vector.load %0[%1, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %4 = vector.load %0[%1, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %5 = vector.load %0[%1, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %6 = vector.load %0[%1, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %7 = vector.load %0[%1, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %8 = vector.load %0[%1, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %9 = vector.load %0[%1, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %10 = vector.load %0[%1, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %11 = vector.load %0[%1, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %12 = vector.load %0[%1, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %13 = vector.load %0[%1, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %14 = vector.load %0[%1, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %15 = vector.load %0[%1, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %16 = vector.load %0[%1, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %17 = vector.load %0[%1, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %18 = affine.apply #map1()[%thread_id_x]
+        %19 = vector.load %0[%18, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %20 = vector.load %0[%18, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %21 = vector.load %0[%18, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %22 = vector.load %0[%18, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %23 = vector.load %0[%18, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %24 = vector.load %0[%18, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %25 = vector.load %0[%18, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %26 = vector.load %0[%18, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %27 = vector.load %0[%18, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %28 = vector.load %0[%18, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %29 = vector.load %0[%18, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %30 = vector.load %0[%18, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %31 = vector.load %0[%18, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %32 = vector.load %0[%18, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %33 = vector.load %0[%18, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %34 = vector.load %0[%18, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %35 = affine.apply #map2()[%thread_id_x]
+        %36 = vector.load %0[%35, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %37 = vector.load %0[%35, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %38 = vector.load %0[%35, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %39 = vector.load %0[%35, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %40 = vector.load %0[%35, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %41 = vector.load %0[%35, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %42 = vector.load %0[%35, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %43 = vector.load %0[%35, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %44 = vector.load %0[%35, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %45 = vector.load %0[%35, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %46 = vector.load %0[%35, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %47 = vector.load %0[%35, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %48 = vector.load %0[%35, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %49 = vector.load %0[%35, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %50 = vector.load %0[%35, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %51 = vector.load %0[%35, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %52 = affine.apply #map3()[%thread_id_x]
+        %53 = vector.load %0[%52, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %54 = vector.load %0[%52, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %55 = vector.load %0[%52, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %56 = vector.load %0[%52, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %57 = vector.load %0[%52, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %58 = vector.load %0[%52, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %59 = vector.load %0[%52, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %60 = vector.load %0[%52, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %61 = vector.load %0[%52, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %62 = vector.load %0[%52, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %63 = vector.load %0[%52, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %64 = vector.load %0[%52, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %65 = vector.load %0[%52, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %66 = vector.load %0[%52, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %67 = vector.load %0[%52, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %68 = vector.load %0[%52, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %69 = affine.apply #map4()[%thread_id_x]
+        %70 = vector.load %0[%69, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %71 = vector.load %0[%69, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %72 = vector.load %0[%69, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %73 = vector.load %0[%69, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %74 = vector.load %0[%69, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %75 = vector.load %0[%69, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %76 = vector.load %0[%69, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %77 = vector.load %0[%69, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %78 = vector.load %0[%69, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %79 = vector.load %0[%69, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %80 = vector.load %0[%69, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %81 = vector.load %0[%69, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %82 = vector.load %0[%69, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %83 = vector.load %0[%69, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %84 = vector.load %0[%69, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %85 = vector.load %0[%69, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %86 = affine.apply #map5()[%thread_id_x]
+        %87 = vector.load %0[%86, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %88 = vector.load %0[%86, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %89 = vector.load %0[%86, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %90 = vector.load %0[%86, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %91 = vector.load %0[%86, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %92 = vector.load %0[%86, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %93 = vector.load %0[%86, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %94 = vector.load %0[%86, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %95 = vector.load %0[%86, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %96 = vector.load %0[%86, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %97 = vector.load %0[%86, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %98 = vector.load %0[%86, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %99 = vector.load %0[%86, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %100 = vector.load %0[%86, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %101 = vector.load %0[%86, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %102 = vector.load %0[%86, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %103 = affine.apply #map6()[%thread_id_x]
+        %104 = vector.load %0[%103, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %105 = vector.load %0[%103, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %106 = vector.load %0[%103, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %107 = vector.load %0[%103, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %108 = vector.load %0[%103, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %109 = vector.load %0[%103, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %110 = vector.load %0[%103, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %111 = vector.load %0[%103, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %112 = vector.load %0[%103, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %113 = vector.load %0[%103, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %114 = vector.load %0[%103, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %115 = vector.load %0[%103, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %116 = vector.load %0[%103, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %117 = vector.load %0[%103, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %118 = vector.load %0[%103, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %119 = vector.load %0[%103, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %120 = affine.apply #map7()[%thread_id_x]
+        %121 = vector.load %0[%120, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %122 = vector.load %0[%120, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %123 = vector.load %0[%120, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %124 = vector.load %0[%120, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %125 = vector.load %0[%120, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %126 = vector.load %0[%120, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %127 = vector.load %0[%120, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %128 = vector.load %0[%120, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %129 = vector.load %0[%120, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %130 = vector.load %0[%120, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %131 = vector.load %0[%120, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %132 = vector.load %0[%120, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %133 = vector.load %0[%120, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %134 = vector.load %0[%120, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %135 = vector.load %0[%120, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %136 = vector.load %0[%120, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %137 = affine.apply #map8()[%thread_id_x]
+        %138 = vector.load %0[%137, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %139 = vector.load %0[%137, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %140 = vector.load %0[%137, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %141 = vector.load %0[%137, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %142 = vector.load %0[%137, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %143 = vector.load %0[%137, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %144 = vector.load %0[%137, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %145 = vector.load %0[%137, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %146 = vector.load %0[%137, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %147 = vector.load %0[%137, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %148 = vector.load %0[%137, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %149 = vector.load %0[%137, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %150 = vector.load %0[%137, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %151 = vector.load %0[%137, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %152 = vector.load %0[%137, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %153 = vector.load %0[%137, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %154 = affine.apply #map9()[%thread_id_x]
+        %155 = vector.load %0[%154, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %156 = vector.load %0[%154, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %157 = vector.load %0[%154, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %158 = vector.load %0[%154, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %159 = vector.load %0[%154, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %160 = vector.load %0[%154, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %161 = vector.load %0[%154, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %162 = vector.load %0[%154, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %163 = vector.load %0[%154, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %164 = vector.load %0[%154, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %165 = vector.load %0[%154, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %166 = vector.load %0[%154, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %167 = vector.load %0[%154, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %168 = vector.load %0[%154, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %169 = vector.load %0[%154, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %170 = vector.load %0[%154, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %171 = affine.apply #map10()[%thread_id_x]
+        %172 = vector.load %0[%171, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %173 = vector.load %0[%171, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %174 = vector.load %0[%171, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %175 = vector.load %0[%171, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %176 = vector.load %0[%171, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %177 = vector.load %0[%171, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %178 = vector.load %0[%171, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %179 = vector.load %0[%171, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %180 = vector.load %0[%171, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %181 = vector.load %0[%171, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %182 = vector.load %0[%171, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %183 = vector.load %0[%171, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %184 = vector.load %0[%171, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %185 = vector.load %0[%171, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %186 = vector.load %0[%171, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %187 = vector.load %0[%171, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %188 = affine.apply #map11()[%thread_id_x]
+        %189 = vector.load %0[%188, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %190 = vector.load %0[%188, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %191 = vector.load %0[%188, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %192 = vector.load %0[%188, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %193 = vector.load %0[%188, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %194 = vector.load %0[%188, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %195 = vector.load %0[%188, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %196 = vector.load %0[%188, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %197 = vector.load %0[%188, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %198 = vector.load %0[%188, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %199 = vector.load %0[%188, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %200 = vector.load %0[%188, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %201 = vector.load %0[%188, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %202 = vector.load %0[%188, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %203 = vector.load %0[%188, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %204 = vector.load %0[%188, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %205 = affine.apply #map12()[%thread_id_x]
+        %206 = vector.load %0[%205, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %207 = vector.load %0[%205, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %208 = vector.load %0[%205, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %209 = vector.load %0[%205, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %210 = vector.load %0[%205, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %211 = vector.load %0[%205, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %212 = vector.load %0[%205, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %213 = vector.load %0[%205, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %214 = vector.load %0[%205, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %215 = vector.load %0[%205, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %216 = vector.load %0[%205, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %217 = vector.load %0[%205, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %218 = vector.load %0[%205, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %219 = vector.load %0[%205, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %220 = vector.load %0[%205, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %221 = vector.load %0[%205, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %222 = affine.apply #map13()[%thread_id_x]
+        %223 = vector.load %0[%222, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %224 = vector.load %0[%222, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %225 = vector.load %0[%222, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %226 = vector.load %0[%222, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %227 = vector.load %0[%222, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %228 = vector.load %0[%222, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %229 = vector.load %0[%222, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %230 = vector.load %0[%222, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %231 = vector.load %0[%222, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %232 = vector.load %0[%222, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %233 = vector.load %0[%222, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %234 = vector.load %0[%222, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %235 = vector.load %0[%222, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %236 = vector.load %0[%222, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %237 = vector.load %0[%222, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %238 = vector.load %0[%222, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %239 = affine.apply #map14()[%thread_id_x]
+        %240 = vector.load %0[%239, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %241 = vector.load %0[%239, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %242 = vector.load %0[%239, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %243 = vector.load %0[%239, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %244 = vector.load %0[%239, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %245 = vector.load %0[%239, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %246 = vector.load %0[%239, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %247 = vector.load %0[%239, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %248 = vector.load %0[%239, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %249 = vector.load %0[%239, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %250 = vector.load %0[%239, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %251 = vector.load %0[%239, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %252 = vector.load %0[%239, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %253 = vector.load %0[%239, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %254 = vector.load %0[%239, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %255 = vector.load %0[%239, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %256 = affine.apply #map15()[%thread_id_x]
+        %257 = vector.load %0[%256, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %258 = vector.load %0[%256, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %259 = vector.load %0[%256, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %260 = vector.load %0[%256, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %261 = vector.load %0[%256, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %262 = vector.load %0[%256, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %263 = vector.load %0[%256, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %264 = vector.load %0[%256, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %265 = vector.load %0[%256, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %266 = vector.load %0[%256, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %267 = vector.load %0[%256, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %268 = vector.load %0[%256, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %269 = vector.load %0[%256, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %270 = vector.load %0[%256, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %271 = vector.load %0[%256, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %272 = vector.load %0[%256, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        %273 = stream.binding.subspan %arg2[%c0] : !stream.binding -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        vector.store %2, %273[%1, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %3, %273[%1, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %4, %273[%1, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %5, %273[%1, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %6, %273[%1, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %7, %273[%1, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %8, %273[%1, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %9, %273[%1, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %10, %273[%1, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %11, %273[%1, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %12, %273[%1, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %13, %273[%1, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %14, %273[%1, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %15, %273[%1, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %16, %273[%1, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %17, %273[%1, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %19, %273[%18, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %20, %273[%18, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %21, %273[%18, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %22, %273[%18, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %23, %273[%18, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %24, %273[%18, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %25, %273[%18, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %26, %273[%18, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %27, %273[%18, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %28, %273[%18, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %29, %273[%18, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %30, %273[%18, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %31, %273[%18, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %32, %273[%18, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %33, %273[%18, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %34, %273[%18, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %36, %273[%35, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %37, %273[%35, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %38, %273[%35, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %39, %273[%35, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %40, %273[%35, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %41, %273[%35, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %42, %273[%35, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %43, %273[%35, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %44, %273[%35, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %45, %273[%35, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %46, %273[%35, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %47, %273[%35, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %48, %273[%35, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %49, %273[%35, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %50, %273[%35, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %51, %273[%35, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %53, %273[%52, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %54, %273[%52, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %55, %273[%52, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %56, %273[%52, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %57, %273[%52, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %58, %273[%52, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %59, %273[%52, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %60, %273[%52, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %61, %273[%52, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %62, %273[%52, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %63, %273[%52, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %64, %273[%52, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %65, %273[%52, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %66, %273[%52, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %67, %273[%52, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %68, %273[%52, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %70, %273[%69, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %71, %273[%69, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %72, %273[%69, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %73, %273[%69, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %74, %273[%69, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %75, %273[%69, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %76, %273[%69, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %77, %273[%69, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %78, %273[%69, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %79, %273[%69, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %80, %273[%69, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %81, %273[%69, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %82, %273[%69, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %83, %273[%69, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %84, %273[%69, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %85, %273[%69, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %87, %273[%86, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %88, %273[%86, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %89, %273[%86, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %90, %273[%86, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %91, %273[%86, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %92, %273[%86, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %93, %273[%86, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %94, %273[%86, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %95, %273[%86, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %96, %273[%86, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %97, %273[%86, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %98, %273[%86, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %99, %273[%86, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %100, %273[%86, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %101, %273[%86, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %102, %273[%86, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %104, %273[%103, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %105, %273[%103, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %106, %273[%103, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %107, %273[%103, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %108, %273[%103, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %109, %273[%103, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %110, %273[%103, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %111, %273[%103, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %112, %273[%103, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %113, %273[%103, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %114, %273[%103, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %115, %273[%103, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %116, %273[%103, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %117, %273[%103, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %118, %273[%103, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %119, %273[%103, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %121, %273[%120, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %122, %273[%120, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %123, %273[%120, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %124, %273[%120, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %125, %273[%120, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %126, %273[%120, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %127, %273[%120, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %128, %273[%120, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %129, %273[%120, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %130, %273[%120, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %131, %273[%120, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %132, %273[%120, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %133, %273[%120, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %134, %273[%120, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %135, %273[%120, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %136, %273[%120, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %138, %273[%137, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %139, %273[%137, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %140, %273[%137, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %141, %273[%137, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %142, %273[%137, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %143, %273[%137, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %144, %273[%137, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %145, %273[%137, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %146, %273[%137, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %147, %273[%137, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %148, %273[%137, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %149, %273[%137, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %150, %273[%137, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %151, %273[%137, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %152, %273[%137, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %153, %273[%137, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %155, %273[%154, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %156, %273[%154, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %157, %273[%154, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %158, %273[%154, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %159, %273[%154, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %160, %273[%154, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %161, %273[%154, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %162, %273[%154, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %163, %273[%154, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %164, %273[%154, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %165, %273[%154, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %166, %273[%154, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %167, %273[%154, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %168, %273[%154, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %169, %273[%154, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %170, %273[%154, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %172, %273[%171, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %173, %273[%171, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %174, %273[%171, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %175, %273[%171, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %176, %273[%171, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %177, %273[%171, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %178, %273[%171, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %179, %273[%171, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %180, %273[%171, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %181, %273[%171, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %182, %273[%171, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %183, %273[%171, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %184, %273[%171, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %185, %273[%171, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %186, %273[%171, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %187, %273[%171, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %189, %273[%188, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %190, %273[%188, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %191, %273[%188, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %192, %273[%188, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %193, %273[%188, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %194, %273[%188, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %195, %273[%188, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %196, %273[%188, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %197, %273[%188, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %198, %273[%188, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %199, %273[%188, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %200, %273[%188, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %201, %273[%188, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %202, %273[%188, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %203, %273[%188, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %204, %273[%188, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %206, %273[%205, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %207, %273[%205, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %208, %273[%205, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %209, %273[%205, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %210, %273[%205, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %211, %273[%205, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %212, %273[%205, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %213, %273[%205, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %214, %273[%205, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %215, %273[%205, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %216, %273[%205, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %217, %273[%205, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %218, %273[%205, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %219, %273[%205, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %220, %273[%205, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %221, %273[%205, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %223, %273[%222, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %224, %273[%222, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %225, %273[%222, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %226, %273[%222, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %227, %273[%222, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %228, %273[%222, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %229, %273[%222, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %230, %273[%222, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %231, %273[%222, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %232, %273[%222, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %233, %273[%222, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %234, %273[%222, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %235, %273[%222, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %236, %273[%222, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %237, %273[%222, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %238, %273[%222, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %240, %273[%239, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %241, %273[%239, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %242, %273[%239, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %243, %273[%239, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %244, %273[%239, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %245, %273[%239, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %246, %273[%239, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %247, %273[%239, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %248, %273[%239, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %249, %273[%239, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %250, %273[%239, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %251, %273[%239, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %252, %273[%239, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %253, %273[%239, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %254, %273[%239, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %255, %273[%239, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %257, %273[%256, %c0] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %258, %273[%256, %c1] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %259, %273[%256, %c2] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %260, %273[%256, %c3] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %261, %273[%256, %c4] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %262, %273[%256, %c5] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %263, %273[%256, %c6] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %264, %273[%256, %c7] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %265, %273[%256, %c8] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %266, %273[%256, %c9] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %267, %273[%256, %c10] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %268, %273[%256, %c11] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %269, %273[%256, %c12] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %270, %273[%256, %c13] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %271, %273[%256, %c14] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        vector.store %272, %273[%256, %c15] : memref<16x16xi32, strided<[16, 1], offset: ?>>, vector<1xi32>
+        return
+      }
+    }
+  }
+  func.func @isolated_benchmark(%arg0: tensor<16x16xi32>, %arg1: tensor<16x16xi32>, %arg2: tensor<16x16xi32>) -> tensor<16x16xi32> {
+    %0 = flow.dispatch @read_kernel::@read_kernel(%arg0, %arg1, %arg2) : (tensor<16x16xi32>, tensor<16x16xi32>, tensor<16x16xi32>) -> %arg2
+    return %0 : tensor<16x16xi32>
+  }
+}
+
+=========================== short test summary info ============================
+FAILED tests/kernel/wave/attention/scatter_test.py::test_read_actual_data - T...
+============================== 1 failed in 4.14s ===============================

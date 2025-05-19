@@ -1,0 +1,161 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.5.0
+rootdir: /home/aurore/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/scatter_test.py F                            [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_read_actual_data _____________________________
+
+    @require_e2e
+    def test_read_actual_data():
+        # Constraints
+        constraints = [
+            tkw.HardwareConstraint(threads_per_wave=64, waves_per_block=(1, 1, 1), vector_shapes={M: 1, N: 1}),
+            tkw.WorkgroupConstraint(M, BLOCK_M, 0),
+            tkw.WorkgroupConstraint(N, BLOCK_N, 1),
+            tkw.WaveConstraint(M, BLOCK_M),
+            tkw.WaveConstraint(N, BLOCK_N),
+        ]
+    
+        # Mapping (identity)
+        i = tkw.IndexMapping.iterator(0)
+        j = tkw.IndexMapping.iterator(1)
+        mapping = tkw.IndexMapping(
+            num_iterators=2,
+            inputs={M: i, N: j},
+            outputs={M: i, N: j},
+        )
+    
+        # Define kernel
+        @tkw.wave(constraints)
+        def read_kernel(
+            a: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+            index: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+            b: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+        ):
+            a_reg = tkw.read(a, elements_per_thread=LOAD_ELEMS_PER_THREAD,mapping=mapping)
+            index_reg=tkw.read(index,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+            tkw.scatter_add(a_reg,index_reg,dim=0,memory=b,mapping=mapping,elements_per_thread=LOAD_ELEMS_PER_THREAD)
+    
+            #tkw.write(a_reg,b,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
+            #index_reg = tkw.read(index, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+        # Compile kernel
+        options = WaveCompileOptions(
+            subs={
+                M: 16,
+                N: 16,
+                BLOCK_M: 16,
+                BLOCK_N: 16,
+                LOAD_ELEMS_PER_THREAD: 1,
+                STORE_ELEMS_PER_THREAD: 1,
+                ADDRESS_SPACE: tkl.AddressSpace.SHARED_MEMORY.value,
+    
+            },
+            compile_to_mlir=True,
+            canonicalize=True,
+            run_bench=False,
+        )
+        options = set_default_run_config(options)
+    
+        read_fn = wave_compile(options, read_kernel)
+        print(read_fn.asm)
+    
+    
+        # Input tensors
+    
+        #index = device_randint(64, dtype=torch.int32).reshape(8, 8)
+        index=device_randint(0, 64, (16, 16), dtype=torch.int32)
+        output = device_zeros((16, 16), dtype=torch.int32).reshape(16, 16).contiguous()
+        input = device_arange(16*16, dtype=torch.int32).reshape(16, 16).contiguous()
+    
+        # index=device_randint(0, 64, (32, 32), dtype=torch.int32)
+        # output = device_zeros((32, 32), dtype=torch.int32).reshape(32, 32).contiguous()
+        # input = device_ones(32*32, dtype=torch.int32).reshape(32, 32).contiguous()
+        # Run kernel
+>       read_fn(input,index,output)
+
+tests/kernel/wave/attention/scatter_test.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+iree/turbine/kernel/wave/compile.py:30: in __call__
+    return self.invoke(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <iree.turbine.kernel.wave.compile.WaveKernel object at 0x704d6cd6a890>
+args = (tensor([[  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,
+          14,  15],
+        [ 16,  17,... 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], device='cuda:0',
+       dtype=torch.int32))
+kwargs = {}, scalar_args = [], kernel_inputs = [], kernel_outputs = []
+usage_idx = 0
+arg = tensor([[  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,
+          14,  15],
+        [ 16,  17, ...1, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253,
+         254, 255]], device='cuda:0', dtype=torch.int32)
+
+    def invoke(self, *args, **kwargs):
+        """
+        Invokes the wave kernel with the given arguments.
+        Returns the assembly code of the compiled kernel.
+        """
+    
+        # Segregate args into kernel tensor and scalars.
+        scalar_args = []
+        kernel_inputs, kernel_outputs = [], []
+    
+        # Partition arguments into kernel inputs and outputs.
+        # ToDo: we should expose the `usage` as a property in binding desc
+        #       so that we can reduce the code and use `zip``.
+        usage_idx = 0
+        for arg in args:
+            if not isinstance(arg, torch.Tensor):
+                scalar_args.append(arg)
+                continue
+>           usage = self.options.kernel_usages[usage_idx]
+E           TypeError: 'NoneType' object is not subscriptable
+
+iree/turbine/kernel/wave/compile.py:50: TypeError
+----------------------------- Captured stdout call -----------------------------
+#map = affine_map<()[s0] -> (s0 + (s0 floordiv 64) * 16)>
+#translation = #iree_codegen.translation_info<pipeline = None workgroup_size = [64, 1, 1] subgroup_size = 64>
+"builtin.module"() ({
+  "stream.executable"() <{sym_name = "read_kernel", sym_visibility = "private"}> ({
+    "stream.executable.export"() <{function_ref = @read_kernel, sym_name = "read_kernel"}> ({
+      %11 = "arith.constant"() <{value = 1 : index}> : () -> index
+      "stream.return"(%11, %11, %11) : (index, index, index) -> ()
+    }) : () -> ()
+    "builtin.module"() ({
+      "func.func"() <{function_type = (!stream.binding, !stream.binding, !stream.binding) -> (), sym_name = "read_kernel"}> ({
+      ^bb0(%arg3: !stream.binding, %arg4: !stream.binding, %arg5: !stream.binding):
+        %0 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %1 = "gpu.thread_id"() <{dimension = #gpu<dim x>}> : () -> index
+        %2 = "stream.binding.subspan"(%arg3, %0) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %3 = "affine.apply"(%1) <{map = #map}> : (index) -> index
+        %4 = "vector.load"(%2, %3, %0) : (memref<16x16xi32, strided<[16, 1], offset: ?>>, index, index) -> vector<1xi32>
+        %5 = "stream.binding.subspan"(%arg4, %0) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %6 = "vector.load"(%5, %3, %0) : (memref<16x16xi32, strided<[16, 1], offset: ?>>, index, index) -> vector<1xi32>
+        %7 = "stream.binding.subspan"(%arg5, %0) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %8 = "vector.extract"(%6) <{static_position = array<i64: 0>}> : (vector<1xi32>) -> i32
+        %9 = "vector.extract"(%4) <{static_position = array<i64: 0>}> : (vector<1xi32>) -> i32
+        %10 = "memref.atomic_rmw"(%9, %7, %8, %0) <{kind = 1 : i64}> : (i32, memref<16x16xi32, strided<[16, 1], offset: ?>>, i32, index) -> i32
+        "func.return"() : () -> ()
+      }) {translation_info = #translation} : () -> ()
+    }) : () -> ()
+    "stream.executable.end"() : () -> ()
+  }) : () -> ()
+  "func.func"() <{function_type = (tensor<16x16xi32>, tensor<16x16xi32>, tensor<16x16xi32>) -> (), sym_name = "isolated_benchmark"}> ({
+  ^bb0(%arg0: tensor<16x16xi32>, %arg1: tensor<16x16xi32>, %arg2: tensor<16x16xi32>):
+    "flow.dispatch"(%arg0, %arg1, %arg2) <{entry_points = [@read_kernel::@read_kernel], operandSegmentSizes = array<i32: 0, 3, 0, 0>, tied_operands = []}> : (tensor<16x16xi32>, tensor<16x16xi32>, tensor<16x16xi32>) -> ()
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) {transform.with_named_sequence} : () -> ()
+
+----------------------------- Captured stderr call -----------------------------
+WARNING 05-05 06:44:02 [expansion.py:740] No leaf operations found in kernel. Using final operation output(return_vals=(None,)) type(None)
+=========================== short test summary info ============================
+FAILED tests/kernel/wave/attention/scatter_test.py::test_read_actual_data - T...
+============================== 1 failed in 2.16s ===============================

@@ -1,0 +1,89 @@
+test_read
+>>> node.index = {M: $T0*LOAD_ELEMS_PER_THREAD + $WG0*BLOCK_M + BLOCK_M*floor($T0/64) : LOAD_ELEMS_PER_THREAD : 1, N: $T1*BLOCK_N + $T1*LOAD_ELEMS_PER_THREAD + $WG1*BLOCK_N : LOAD_ELEMS_PER_THREAD : 1}
+indices [<iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129d19f0>, <iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129c3d70>]
+>>> node.index = {M: $T0*LOAD_ELEMS_PER_THREAD + $WG0*BLOCK_M + BLOCK_M*floor($T0/64) : LOAD_ELEMS_PER_THREAD : 1, N: $T1*BLOCK_N + $T1*LOAD_ELEMS_PER_THREAD + $WG1*BLOCK_N : LOAD_ELEMS_PER_THREAD : 1}
+indices [<iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129e48f0>, <iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129e4a30>]
+elements_per_thread = 1 <class 'int'>
+indices [<iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129ec730>, <iree.compiler._mlir_libs._mlir.ir.OpResult object at 0x753d129ec630>]
+#map = affine_map<()[s0, s1, s2, s3, s4] -> (((s0 * s1) floordiv s2) * s3 + s4)>
+#translation = #iree_codegen.translation_info<pipeline = None workgroup_size = [64, 1, 1] subgroup_size = 64>
+"builtin.module"() ({
+  "stream.executable"() <{sym_name = "read", sym_visibility = "private"}> ({
+    "stream.executable.export"() <{function_ref = @read, sym_name = "read"}> ({
+      %56 = "arith.constant"() <{value = 1 : index}> : () -> index
+      %57 = "arith.constant"() <{value = 1 : index}> : () -> index
+      %58 = "arith.constant"() <{value = 1 : index}> : () -> index
+      "stream.return"(%56, %57, %58) : (index, index, index) -> ()
+    }) : () -> ()
+    "builtin.module"() ({
+      "func.func"() <{function_type = (!stream.binding, !stream.binding, !stream.binding) -> (), sym_name = "read"}> ({
+      ^bb0(%arg3: !stream.binding, %arg4: !stream.binding, %arg5: !stream.binding):
+        %0 = "stream.dispatch.workgroup.id"() <{dimension = 0 : index}> : () -> index
+        %1 = "stream.dispatch.workgroup.id"() <{dimension = 1 : index}> : () -> index
+        %2 = "stream.dispatch.workgroup.id"() <{dimension = 2 : index}> : () -> index
+        %3 = "gpu.thread_id"() <{dimension = #gpu<dim x>}> : () -> index
+        %4 = "gpu.thread_id"() <{dimension = #gpu<dim y>}> : () -> index
+        %5 = "gpu.thread_id"() <{dimension = #gpu<dim z>}> : () -> index
+        %6 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %7 = "stream.binding.subspan"(%arg3, %6) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %8 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %9 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %10 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %11 = "affine.apply"(%3, %9, %10, %8, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %12 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %13 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %14 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %15 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %16 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %17 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %18 = "affine.apply"(%3, %16, %17, %15, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %19 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %20 = "vector.load"(%7, %11, %12) : (memref<16x16xi32, strided<[16, 1], offset: ?>>, index, index) -> vector<1xi32>
+        %21 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %22 = "stream.binding.subspan"(%arg4, %21) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %23 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %24 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %25 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %26 = "affine.apply"(%3, %24, %25, %23, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %27 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %28 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %29 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %30 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %31 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %32 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %33 = "affine.apply"(%3, %31, %32, %30, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %34 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %35 = "vector.load"(%22, %26, %27) : (memref<16x16xi32, strided<[16, 1], offset: ?>>, index, index) -> vector<1xi32>
+        %36 = "arith.index_cast"(%35) : (vector<1xi32>) -> vector<1xindex>
+        %37 = "arith.constant"() <{value = dense<true> : vector<1xi1>}> : () -> vector<1xi1>
+        %38 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %39 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %40 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %41 = "affine.apply"(%3, %39, %40, %38, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %42 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %43 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %44 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %45 = "arith.constant"() <{value = 16 : index}> : () -> index
+        %46 = "arith.constant"() <{value = 1 : index}> : () -> index
+        %47 = "arith.constant"() <{value = 64 : index}> : () -> index
+        %48 = "affine.apply"(%3, %46, %47, %45, %3) <{map = #map}> : (index, index, index, index, index) -> index
+        %49 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %50 = "arith.constant"() <{value = 0 : index}> : () -> index
+        %51 = "stream.binding.subspan"(%arg5, %50) : (!stream.binding, index) -> memref<16x16xi32, strided<[16, 1], offset: ?>>
+        %52 = "vector.extract"(%35) <{static_position = array<i64: 0>}> : (vector<1xi32>) -> i32
+        %53 = "vector.extract"(%20) <{static_position = array<i64: 0>}> : (vector<1xi32>) -> i32
+        %54 = "memref.atomic_rmw"(%53, %51, %52, %42) <{kind = 1 : i64}> : (i32, memref<16x16xi32, strided<[16, 1], offset: ?>>, i32, index) -> i32
+        %55 = "vector.from_elements"(%54) : (i32) -> vector<1xi32>
+        "func.return"() : () -> ()
+      }) {translation_info = #translation} : () -> ()
+    }) : () -> ()
+    "stream.executable.end"() : () -> ()
+  }) : () -> ()
+  "func.func"() <{function_type = (tensor<16x16xi32>, tensor<16x16xi32>, tensor<16x16xi32>) -> (), sym_name = "isolated_benchmark"}> ({
+  ^bb0(%arg0: tensor<16x16xi32>, %arg1: tensor<16x16xi32>, %arg2: tensor<16x16xi32>):
+    "flow.dispatch"(%arg0, %arg1, %arg2) <{entry_points = [@read::@read], operandSegmentSizes = array<i32: 0, 3, 0, 0>, tied_operands = []}> : (tensor<16x16xi32>, tensor<16x16xi32>, tensor<16x16xi32>) -> ()
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+
+-----
