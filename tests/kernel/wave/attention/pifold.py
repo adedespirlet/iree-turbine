@@ -69,9 +69,10 @@ STORE_ELEMS_PER_THREAD = tkl.sym.STORE_ELEMS_PER_THREAD
 @pytest.mark.parametrize(
     "mfma_variant",
     [
-        GenericDot(k_mult=8,k_vec_size=1, out_vec_size=1, along_dim=MMAOperand.M),
+        GenericDot(k_mult=64,k_vec_size=8, out_vec_size=1, along_dim=MMAOperand.M),
     ],
 )
+##this will generate vector_shape of size (8,1,8)
 
 def test_neighbor_attention( mfma_variant: MMAType):
 
@@ -98,7 +99,6 @@ def test_neighbor_attention( mfma_variant: MMAType):
             vector_shapes={M: 8, N: 1, K1:8},
         ), 
     ]
-
     i = tkw.IndexMapping.iterator(0)
     j = tkw.IndexMapping.iterator(1)
     k = tkw.IndexMapping.iterator(2)
@@ -107,44 +107,44 @@ def test_neighbor_attention( mfma_variant: MMAType):
         inputs={M: i, N: j},
         outputs={M: i, N: j},
     )
-    
+    scale= 1.0 / math.sqrt(16.0)
+
     @tkw.wave(constraints)
     def neighbor_attention(
-        h_V_dst: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.f16],
-        mlp_weight: tkl.Memory[N,K1,ADDRESS_SPACE, tkl.f16 ],
-        # edge_src: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
-        # edge_dst: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
+        concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.f16],
+        mlp_weights: tkl.Memory[N,K1,ADDRESS_SPACE, tkl.f16 ],
         out_V: tkl.Memory[M,N, ADDRESS_SPACE, tkl.f32],
     ):
-        imm_reg = tkl.Register[M, N, tkl.f32](0.0)
-        @tkw.iterate(K1, init_args=[imm_reg])
-        def repeat(inner_acc: tkl.Register[M, N, tkl.f32]) -> tkl.Register[M, N, tkl.f32]:
-            V_dst_reg = tkw.read(h_V_dst, elements_per_thread=LOAD_ELEMS_PER_THREAD)   
-            mlp_reg = tkw.read(mlp_weight, elements_per_thread=LOAD_ELEMS_PER_THREAD) 
+        edge_scaling = tkl.Register[N, M, tkl.f32](scale)
+        zero_accumulator = tkl.Register[M, N, tkl.f32](0.0)
+
+        @tkw.iterate(K1, init_args=[zero_accumulator])
+        def accumulate_dot_product(partial_sum: tkl.Register[M, N, tkl.f32]) -> tkl.Register[M, N, tkl.f32]:
+            # Gather destination node features, pass through MLP and obtain attention score for each edge : perform h_V_dst * mlp_weight
+            concat_feat_reg = tkw.read(concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD)   
+            mlp_reg = tkw.read(mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD) 
             #tkw.broadcast
-            inner_acc=tkw.mma(V_dst_reg,mlp_reg,inner_acc)
-            return inner_acc
+            partial_sum=tkw.mma(concat_feat_reg,mlp_reg,partial_sum)
+            return partial_sum
         
-        # Gather destination node features: [E, F]
-        #h_dst = tkw.write(h_V_reg, dyn_values=dst_idx)
+        # Normalize attention scores
+        attention_score =  accumulate_dot_product 
+        result = attention_score * edge_scaling
 
-
-        # Compute raw attention score: simple dot product (per edge) , more involved is to pass both concatened through MLP
-        # src = E_dst_reg*E_reg
-        # attention_logits = tkw.sum(src, acc,dim=FT)  # [E, 1]
-
-        tkw.write(repeat ,out_V,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
+        #SCATTER_SOFTMAX
+        ##SCATTER_ADD
+        tkw.write(result ,out_V,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
 
 
     # Hyperparams
     hyperparams = {
         ADDRESS_SPACE: GLOBAL_ADDRESS_SPACE,
-        M:16,
+        M:8,
         N:1,
-        K1:16,
-        BLOCK_M: 16,
+        K1:8,
+        BLOCK_M: 8,
         BLOCK_N:1,
-        BLOCK_K1:16,
+        BLOCK_K1:8,
         LOAD_ELEMS_PER_THREAD:1,
         STORE_ELEMS_PER_THREAD:1,
     }
@@ -162,19 +162,19 @@ def test_neighbor_attention( mfma_variant: MMAType):
         tkl.kernel_buffer.KernelBufferUsage.OUTPUT,  
         ],
         print_signature=True,
-        print_ir_before=["decompose_dot_mma"],
-        print_ir_after=["decompose_dot_mma"]
+        print_ir_before=["set_node_indices"],
+        print_ir_after=["set_node_indices"]
     )
     options = set_default_run_config(options)
     neighbor_attention = wave_compile(options, neighbor_attention)
     print(neighbor_attention.asm)
 
-    h_V_dst = torch.arange(16*16, dtype=torch.float16).reshape(16,16).contiguous().cuda()
+    h_V_dst = torch.arange(8*8, dtype=torch.float16).reshape(8,8).contiguous().cuda()
     
     #h_E = torch.zeros((16, 8), dtype=torch.int32).contiguous().cuda()
-    mlp_weight = torch.arange(16*1, dtype=torch.float16).reshape(1,16).contiguous().cuda()
+    mlp_weight = torch.ones(8*1, dtype=torch.float16).reshape(1,8).contiguous().cuda()
 
-    output = torch.zeros((16, 1), dtype=torch.float32).contiguous().cuda()
+    output = torch.zeros((8, 1), dtype=torch.float32).contiguous().cuda()
 
     neighbor_attention(h_V_dst, mlp_weight, output)
 
@@ -191,71 +191,22 @@ def test_neighbor_attention( mfma_variant: MMAType):
     print("torch_output:")
     print(torch_output)
 
-# V = tkl.sym.V
-# E = tkl.sym.E
-# F_IN = tkl.sym.F_IN
-# F_OUT = tkl.sym.F_OUT
-# BLOCK_V = tkl.sym.BLOCK_V
-# ADDRESS_SPACE = tkl.sym.ADDRESS_SPACE
-
-# @run_test
-# def test_neighbor_attention():
-#     constraints = [
-#         tkw.WorkgroupConstraint(V, BLOCK_V, 0), 
-#         tkw.WorkgroupConstraint(E, BLOCK_V, 1), 
-#         tkw.WorkgroupConstraint(F_IN, BLOCK_M, 2), #or F_OUT
-#         tkw.WaveConstraint(M, BLOCK_M/2),
-#         tkw.WaveConstraint(N, BLOCK_N),
-#         tkw.HardwareConstraint(
-#             threads_per_wave=64,
-#             waves_per_block=(1, 1, 1),
-#             vector_shapes={V: 1}
-#         ),
-#     ]
-
-#     @tkw.wave(constraints)
-#     def neighbor_attention(
-#         h_V: tkl.Memory[V, F_IN, ADDRESS_SPACE, tkl.i32],
-#         h_E: tkl.Memory[E, F_IN, ADDRESS_SPACE, tkl.i32],
-#         edge_src: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
-#         edge_dst: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
-#         out_V: tkl.Memory[V, F_OUT, ADDRESS_SPACE, tkl.i32],
-#     ):
-#         h_V_reg = tkw.read(h_V, elements_per_thread=1)         # [V, F]
-#         h_E_reg = tkw.read(h_E, elements_per_thread=1)         # [E, F]
-#         src_idx = tkw.read(edge_src, elements_per_thread=1)    # [E]
-#         dst_idx = tkw.read(edge_dst, elements_per_thread=1)    # [E]
-
-#         acc = tkl.Register[E, 1, tkl.i32](0.0)
-
-#         # Gather destination node features: [E, F]
-
-#         # Compute raw attention score: simple dot product (per edge) , more involved is to pass both concatened through MLP
-#         src = h_V_reg * h_E_reg
-#         attention_logits = tkw.sum(src, acc,dim=1)  # [E, 1]
-
-#         tkw.write(attention_logits,out_V)
-
-#         # tkw.write(projected, out_V, elements_per_thread=1)
-
-#     # Hyperparams
-#     hyperparams = {
-#         ADDRESS_SPACE: GLOBAL_ADDRESS_SPACE,
-#         V: 128,
-#         E: 256,
-#         F_OUT: 1,
-#         F_IN: 32,
-#         BLOCK_V: 64,
-#     }
-
-#     options = WaveCompileOptions(
-#         subs=hyperparams,
-#         canonicalize=True,
-#         run_bench=False,
-#         schedule=SchedulingType.NONE,
-#         use_scheduling_barriers=False,
-#         compile_to_mlir=True,
-#     )
-
-#     compiled = wave_compile(options, neighbor_attention)
-#     print(compiled.asm)
+# GNN Message Passing – PiFold Code Implementation
+# This section documents the message passing logic implemented for the GNN in PiFold.
+# Inputs:
+# Concatenated Features: For each edge, concatenate the destination node's features with the edge’s own features.
+# MLP Weights: A learned weight matrix used to compute attention scores.
+# Transformed Edge Features: Feature vectors associated with each edge (e.g., after projection or embedding).
+# Computation Steps:
+# Attention Score Computation
+# Compute the attention score for each edge by taking the dot product between:
+# The concatenated destination + edge features, and The MLP weight vector.
+# This results in a scalar attention score for each edge ([num_edges × 1]).
+# Normalization
+# Normalize the attention scores by dividing each by the square root of the feature dimension to improve training stability.
+# Attention Softmax (scatter_softmax)
+# Apply a scatter-based softmax so that, for each destination node, the attention scores of all incoming edges sum to 1.
+# Weighted Edge Features
+# Multiply each edge’s feature vector by its corresponding normalized attention score.
+# Message Aggregation (scatter_add)
+# Aggregate the messages from all incoming edges to their destination nodes using scatter_add.

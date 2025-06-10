@@ -1,0 +1,282 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.5.0
+rootdir: /home/aurore/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/pifold.py ***Before set_node_indices***
+
+region_1 [root]:
+
+graph():
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %out_v :  [num_users=1] = placeholder[target=out_V]
+    %register :  [num_users=1] = [register](args = ((N, M), f32, 0.25), kwargs = {})
+    %register_1 :  [num_users=1] = [register](args = ((M, N), f32, 0.0), kwargs = {})
+    %iterate :  [num_users=1] = [iterate](args = (K1, [%register_1], region_0, [%concat_dst_edge_features, %mlp_weights], 1, None, None), kwargs = {})
+    %get_result :  [num_users=1] = [get_result](args = (%iterate, 0), kwargs = {})
+    %mul :  [num_users=1] = [mul](args = (%get_result, %register), kwargs = {})
+    %write :  [num_users=0] = [write](args = (%mul, %out_v, STORE_ELEMS_PER_THREAD, IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), ()), kwargs = {})
+    return None
+Custom format:
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+placeholder(_name=out_v, _type=Memory[M, N].of(f32)) type(Memory[M, N].of(f32))
+register(shape=(N, M), dtype=f32, value=0.25) type(Register[N, M].of(f32))
+register(shape=(M, N), dtype=f32, value=0.0) type(Register[M, N].of(f32))
+iterate(axis=K1, init_args=[register_1], subgraph_name=region_0, implicit_captures=[concat_dst_edge_features, mlp_weights], step=1) type(Register[M, N].of(f32))
+get_result(value=iterate, res_idx=0) type(Register[M, N].of(f32))
+mul(lhs=get_result, rhs=register) type(Register[N, M].of(f32))
+write(register_=mul, memory=out_v, elements_per_thread=STORE_ELEMS_PER_THREAD, mapping=IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), mapping_dynamic_vals=()) type(Memory[M, N].of(f32))
+output(return_vals=(None,)) type(None)
+region_0:
+
+graph():
+    %partial_sum :  [num_users=1] = placeholder[target=partial_sum]
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %read :  [num_users=1] = [read](args = (%concat_dst_edge_features, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %read_1 :  [num_users=1] = [read](args = (%mlp_weights, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mma :  [num_users=1] = [mma](args = (%read, %read_1, %partial_sum, None), kwargs = {})
+    return mma
+Custom format:
+placeholder(_name=partial_sum, _type=Register[M, N].of(f32)) type(Register[M, N].of(f32))
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+read(memory=concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=()) type(Register[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+read(memory=mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=()) type(Register[N, K1].of(f16))
+mma(lhs=read, rhs=read_1, acc=partial_sum) type(Register[M, N].of(f32))
+output(return_vals=(mma,)) type(Register[M, N].of(f32))
+Error in pass: resolve_thread_shapes
+
+region_1 [root]:
+
+graph():
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %out_v :  [num_users=1] = placeholder[target=out_V]
+    %register :  [num_users=1] = [register](args = ((N, M), f32, 0.25), kwargs = {})
+    %register_1 :  [num_users=1] = [register](args = ((M, N), f32, 0.0), kwargs = {})
+    %iterate :  [num_users=1] = [iterate](args = (K1, [%register_1], region_0, [%concat_dst_edge_features, %mlp_weights], 1, None, None), kwargs = {})
+    %get_result :  [num_users=1] = [get_result](args = (%iterate, 0), kwargs = {})
+    %mul :  [num_users=1] = [mul](args = (%get_result, %register), kwargs = {})
+    %write :  [num_users=0] = [write](args = (%mul, %out_v, STORE_ELEMS_PER_THREAD, IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), ()), kwargs = {})
+    return None
+Custom format:
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+placeholder(_name=out_v, _type=Memory[M, N].of(f32)) type(Memory[M, N].of(f32))
+register(shape=(N, M), dtype=f32, value=0.25, index={N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1}) type(Register[N, M].of(f32))
+register(shape=(M, N), dtype=f32, value=0.0, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[M, N].of(f32))
+iterate(axis=K1, init_args=[register_1], subgraph_name=region_0, implicit_captures=[concat_dst_edge_features, mlp_weights], step=1) type(Register[M, N].of(f32))
+get_result(value=iterate, res_idx=0, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[M, N].of(f32))
+mul(lhs=get_result, rhs=register, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[N, M].of(f32))
+write(register_=mul, memory=out_v, elements_per_thread=STORE_ELEMS_PER_THREAD, mapping=IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), mapping_dynamic_vals=(), index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Memory[M, N].of(f32))
+output(return_vals=(None,)) type(None)
+region_0:
+
+graph():
+    %partial_sum :  [num_users=1] = placeholder[target=partial_sum]
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %read :  [num_users=1] = [read](args = (%concat_dst_edge_features, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %read_1 :  [num_users=1] = [read](args = (%mlp_weights, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mma :  [num_users=1] = [mma](args = (%read, %read_1, %partial_sum, None), kwargs = {})
+    return mma
+Custom format:
+placeholder(_name=partial_sum, _type=Register[M, N].of(f32)) type(Register[M, N].of(f32))
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+read(memory=concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=(), index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}) type(Register[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+read(memory=mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=(), index={N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}) type(Register[N, K1].of(f16))
+mma(lhs=read (index = {M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}), rhs=read_1 (index = {N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}), acc=partial_sum (index = {M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1})) type(Register[M, N].of(f32))
+output(return_vals=(mma,)) type(Register[M, N].of(f32))
+Error in pass: set_node_indices
+
+region_1 [root]:
+
+graph():
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %out_v :  [num_users=1] = placeholder[target=out_V]
+    %register :  [num_users=1] = [register](args = ((N, M), f32, 0.25), kwargs = {})
+    %register_1 :  [num_users=1] = [register](args = ((M, N), f32, 0.0), kwargs = {})
+    %iterate :  [num_users=1] = [iterate](args = (K1, [%register_1], region_0, [%concat_dst_edge_features, %mlp_weights], 1, None, None), kwargs = {})
+    %get_result :  [num_users=1] = [get_result](args = (%iterate, 0), kwargs = {})
+    %mul :  [num_users=1] = [mul](args = (%get_result, %register), kwargs = {})
+    %write :  [num_users=0] = [write](args = (%mul, %out_v, STORE_ELEMS_PER_THREAD, IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), ()), kwargs = {})
+    return None
+Custom format:
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+placeholder(_name=out_v, _type=Memory[M, N].of(f32)) type(Memory[M, N].of(f32))
+register(shape=(N, M), dtype=f32, value=0.25, index={N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1}) type(Register[N, M].of(f32))
+register(shape=(M, N), dtype=f32, value=0.0, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[M, N].of(f32))
+iterate(axis=K1, init_args=[register_1], subgraph_name=region_0, implicit_captures=[concat_dst_edge_features, mlp_weights], step=1) type(Register[M, N].of(f32))
+get_result(value=iterate, res_idx=0, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[M, N].of(f32))
+mul(lhs=get_result, rhs=register, index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Register[N, M].of(f32))
+write(register_=mul, memory=out_v, elements_per_thread=STORE_ELEMS_PER_THREAD, mapping=IndexMapping(iters={$index0: 0, $index1: 1}, input_mapping={M: $index0, N: $index1}), output_mapping={M: $index0, N: $index1}, dynamic_val_mappings=(), mapping_dynamic_vals=(), index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1}) type(Memory[M, N].of(f32))
+output(return_vals=(None,)) type(None)
+region_0:
+
+graph():
+    %partial_sum :  [num_users=1] = placeholder[target=partial_sum]
+    %concat_dst_edge_features :  [num_users=1] = placeholder[target=concat_dst_edge_features]
+    %read :  [num_users=1] = [read](args = (%concat_dst_edge_features, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mlp_weights :  [num_users=1] = placeholder[target=mlp_weights]
+    %read_1 :  [num_users=1] = [read](args = (%mlp_weights, LOAD_ELEMS_PER_THREAD, None, (), None), kwargs = {})
+    %mma :  [num_users=1] = [mma](args = (%read, %read_1, %partial_sum, None), kwargs = {})
+    return mma
+Custom format:
+placeholder(_name=partial_sum, _type=Register[M, N].of(f32)) type(Register[M, N].of(f32))
+placeholder(_name=concat_dst_edge_features, _type=Memory[M, K1].of(f16)) type(Memory[M, K1].of(f16))
+read(memory=concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=(), index={M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}) type(Register[M, K1].of(f16))
+placeholder(_name=mlp_weights, _type=Memory[N, K1].of(f16)) type(Memory[N, K1].of(f16))
+read(memory=mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping_dynamic_vals=(), index={N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}) type(Register[N, K1].of(f16))
+mma(lhs=read (index = {M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}), rhs=read_1 (index = {N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1, K1: $ARGK1*BLOCK_K1 + 8*(Mod($T0, 64)) : 8 : 8}), acc=partial_sum (index = {M: $WG0*BLOCK_M + BLOCK_M*floor($T0/64) + floor((Mod($T0, 64))/64) : 1 : 1, N: $T1*BLOCK_N + $WG1*BLOCK_N : 1 : 1})) type(Register[M, N].of(f32))
+output(return_vals=(mma,)) type(Register[M, N].of(f32))
+F
+
+=================================== FAILURES ===================================
+____________________ test_neighbor_attention[mfma_variant0] ____________________
+
+mfma_variant = GenericDot(out_vec_size=1, k_vec_size=8, k_mult=64, along_dim=<MMAOperand.M: 0>)
+
+    @require_e2e
+    @pytest.mark.parametrize(
+        "mfma_variant",
+        [
+            GenericDot(k_mult=64,k_vec_size=8, out_vec_size=1, along_dim=MMAOperand.M),
+        ],
+    )
+    ##this will generate vector_shape of size (8,1,8)
+    
+    def test_neighbor_attention( mfma_variant: MMAType):
+    
+    
+        # mfma_variant=(MMAType.F32_32x32x8_F16, MMAType.F32_32x32x8_F16)
+    
+        # if mfma_variant[1] == MMAType.F32_16x16x16_F16:
+        #     Mvec = 16
+        #     Nvec = 16
+        # if mfma_variant[1] == MMAType.F32_32x32x8_F16:
+        #     Mvec = 32
+        #     Nvec = 32
+    
+        constraints = [
+            tkw.WorkgroupConstraint(M, BLOCK_M, 0),
+            tkw.WorkgroupConstraint(N, BLOCK_N, 1),
+            tkw.WaveConstraint(M, BLOCK_M),
+            tkw.WaveConstraint(N, BLOCK_N),
+            tkw.TilingConstraint(K1, BLOCK_K1),
+            tkw.HardwareConstraint(
+                threads_per_wave=64,
+                waves_per_block=(1, 1, 1),
+                mma_type=mfma_variant,
+                vector_shapes={M: 8, N: 1, K1:8},
+            ),
+        ]
+    
+        i = tkw.IndexMapping.iterator(0)
+        j = tkw.IndexMapping.iterator(1)
+        k = tkw.IndexMapping.iterator(2)
+        mapping = tkw.IndexMapping(
+            num_iterators=2,
+            inputs={M: i, N: j},
+            outputs={M: i, N: j},
+        )
+        scale= 1.0 / math.sqrt(16.0)
+    
+        @tkw.wave(constraints)
+        def neighbor_attention(
+            concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.f16],
+            mlp_weights: tkl.Memory[N,K1,ADDRESS_SPACE, tkl.f16 ],
+            # edge_src: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
+            # edge_dst: tkl.Memory[E, ADDRESS_SPACE, tkl.index],
+            out_V: tkl.Memory[M,N, ADDRESS_SPACE, tkl.f32],
+        ):
+            edge_scaling = tkl.Register[N, M, tkl.f32](scale)
+            zero_accumulator = tkl.Register[M, N, tkl.f32](0.0)
+    
+            @tkw.iterate(K1, init_args=[zero_accumulator])
+            def accumulate_dot_product(partial_sum: tkl.Register[M, N, tkl.f32]) -> tkl.Register[M, N, tkl.f32]:
+                # Gather destination node features, pass through MLP and obtain attention score for each edge : perform h_V_dst * mlp_weight
+                concat_feat_reg = tkw.read(concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+                mlp_reg = tkw.read(mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+                #tkw.broadcast
+                partial_sum=tkw.mma(concat_feat_reg,mlp_reg,partial_sum)
+                return partial_sum
+    
+            # Normalize attention scores
+            attention_score =  accumulate_dot_product
+            result = attention_score * edge_scaling
+    
+            #SCATTER_SOFTMAX
+    
+            ##SCATTER_ADD
+    
+            tkw.write(result ,out_V,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
+    
+    
+        # Hyperparams
+        hyperparams = {
+            ADDRESS_SPACE: GLOBAL_ADDRESS_SPACE,
+            M:8,
+            N:1,
+            K1:8,
+            BLOCK_M: 8,
+            BLOCK_N:1,
+            BLOCK_K1:8,
+            LOAD_ELEMS_PER_THREAD:1,
+            STORE_ELEMS_PER_THREAD:1,
+        }
+    
+        options = WaveCompileOptions(
+            subs=hyperparams,
+            canonicalize=True,
+            run_bench=False,
+            schedule=SchedulingType.NONE,
+            use_scheduling_barriers=False,
+            compile_to_mlir=False,
+            kernel_usages=[
+            tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
+            ],
+            print_signature=True,
+            print_ir_before=["set_node_indices"],
+            print_ir_after=["set_node_indices"]
+        )
+        options = set_default_run_config(options)
+>       neighbor_attention = wave_compile(options, neighbor_attention)
+
+tests/kernel/wave/attention/pifold.py:174: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+iree/turbine/kernel/wave/compile.py:105: in wave_compile
+    ) = kernel._trace_and_get_kernel_signature(options)
+iree/turbine/kernel/wave/wave.py:580: in _trace_and_get_kernel_signature
+    try_apply_pass(p, trace, print_ir_before, print_ir_after)
+iree/turbine/kernel/wave/utils/print_utils.py:68: in try_apply_pass
+    p()
+iree/turbine/kernel/wave/analysis/index_sequence_analysis.py:182: in set_node_indices
+    try_apply_pass(p, trace, print_ir_before, print_ir_after)
+iree/turbine/kernel/wave/utils/print_utils.py:68: in try_apply_pass
+    p()
+iree/turbine/kernel/wave/analysis/index_sequence_analysis.py:770: in resolve_thread_shapes
+    lhs_dim, lhs_size = get_largest_index_and_size(lhs_index, lhs)
+iree/turbine/kernel/wave/utils/general_utils.py:298: in get_largest_index_and_size
+    sorted_values = sorted(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = -Piecewise((1, $MMA_ACC | ~$MMA_ACC)) < -8
+
+    def __bool__(self):
+>       raise TypeError("cannot determine truth value of Relational")
+E       TypeError: cannot determine truth value of Relational
+
+../../venv/lib/python3.10/site-packages/sympy/core/relational.py:516: TypeError
+=========================== short test summary info ============================
+FAILED tests/kernel/wave/attention/pifold.py::test_neighbor_attention[mfma_variant0]
+============================== 1 failed in 1.81s ===============================
