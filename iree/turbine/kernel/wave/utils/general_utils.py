@@ -167,7 +167,7 @@ def find_index_bounds(
         work_size = constraint.work_bound
         ##Get rid of automatically turning off masking when tile sze ==workgroup size
         # if subs_idxc(work_size) >= subs_idxc(dim):
-            #continue
+        # continue
 
         bounds.append(dim)
     if len(bounds) == 0:
@@ -300,7 +300,7 @@ def get_largest_index_and_size(
 
     sorted_values = sorted(
         [
-            (i, dim, subs_idxc(index.size))
+            (i, dim, sympy.simplify(subs_idxc(index.size)))
             for i, (dim, index) in enumerate(indices.items())
         ],
         # x[0] is the index of the dimension.

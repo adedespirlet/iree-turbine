@@ -50,12 +50,12 @@ from iree.turbine.kernel.wave.scheduling.schedule import SchedulingType
 from iree.turbine.kernel.wave.compile import wave_compile, WaveCompileOptions
 
 
-K1=tkl.sym.K1
-M=tkl.sym.M
+K1 = tkl.sym.K1
+M = tkl.sym.M
 N = tkl.sym.N
 E = tkl.sym.E
 FT = tkl.sym.FT
-FT2 =  tkl.sym.FT2
+FT2 = tkl.sym.FT2
 F_IN = tkl.sym.F_IN
 F_OUT = tkl.sym.F_OUT
 BLOCK_M = tkl.sym.BLOCK_M
@@ -65,19 +65,18 @@ ADDRESS_SPACE = tkl.sym.ADDRESS_SPACE
 LOAD_ELEMS_PER_THREAD = tkl.sym.LOAD_ELEMS_PER_THREAD
 STORE_ELEMS_PER_THREAD = tkl.sym.STORE_ELEMS_PER_THREAD
 
+
 @require_e2e
 @pytest.mark.parametrize(
     "mfma_variant",
     [
-        GenericDot(k_mult=8,k_vec_size=1, out_vec_size=1, along_dim=MMAOperand.M),
+        GenericDot(k_mult=8, k_vec_size=1, out_vec_size=1, along_dim=MMAOperand.M),
     ],
 )
-
-def test_neighbor_attention( mfma_variant: MMAType):
-
+def test_neighbor_attention(mfma_variant: MMAType):
 
     # mfma_variant=(MMAType.F32_32x32x8_F16, MMAType.F32_32x32x8_F16)
-    
+
     # if mfma_variant[1] == MMAType.F32_16x16x16_F16:
     #     Mvec = 16
     #     Nvec = 16
@@ -86,7 +85,7 @@ def test_neighbor_attention( mfma_variant: MMAType):
     #     Nvec = 32
 
     constraints = [
-        tkw.WorkgroupConstraint(M, BLOCK_M, 0),  
+        tkw.WorkgroupConstraint(M, BLOCK_M, 0),
         tkw.WorkgroupConstraint(N, BLOCK_N, 1),
         tkw.WaveConstraint(M, BLOCK_M),
         tkw.WaveConstraint(N, BLOCK_N),
@@ -95,8 +94,8 @@ def test_neighbor_attention( mfma_variant: MMAType):
             threads_per_wave=64,
             waves_per_block=(1, 1, 1),
             mma_type=mfma_variant,
-            vector_shapes={M: 8, N: 1, K1:8},
-        ), 
+            vector_shapes={M: 8, N: 1, K1: 8},
+        ),
     ]
 
     i = tkw.IndexMapping.iterator(0)
@@ -107,45 +106,54 @@ def test_neighbor_attention( mfma_variant: MMAType):
         inputs={M: i, N: j},
         outputs={M: i, N: j},
     )
-    
-    scale= 1.0 / math.sqrt(16.0)
+
+    scale = 1.0 / math.sqrt(16.0)
+
     @tkw.wave(constraints)
     def neighbor_attention(
         concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.f16],
-        mlp_weights:tkl.Memory[N,K1,ADDRESS_SPACE, tkl.f16 ],
-        out_V: tkl.Memory[M,N, ADDRESS_SPACE, tkl.f32],
+        mlp_weights: tkl.Memory[N, K1, ADDRESS_SPACE, tkl.f16],
+        out_V: tkl.Memory[M, N, ADDRESS_SPACE, tkl.f32],
     ):
         edge_scaling = tkl.Register[N, M, tkl.f32](scale)
         zero_accumulator = tkl.Register[M, N, tkl.f32](0.0)
+
         @tkw.iterate(K1, init_args=[zero_accumulator])
-        def accumulate_dot_product(partial_sum: tkl.Register[M, N, tkl.f32]) -> tkl.Register[M, N, tkl.f32]:
+        def accumulate_dot_product(
+            partial_sum: tkl.Register[M, N, tkl.f32]
+        ) -> tkl.Register[M, N, tkl.f32]:
             # Gather destination node features, pass through MLP and obtain attention score for each edge : perform h_V_dst * mlp_weight
-            concat_feat_reg = tkw.read(concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD)   
-            mlp_reg = tkw.read(mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD) 
-            partial_sum=tkw.mma(concat_feat_reg,mlp_reg,partial_sum)
+            concat_feat_reg = tkw.read(
+                concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD
+            )
+            mlp_reg = tkw.read(mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+            partial_sum = tkw.mma(concat_feat_reg, mlp_reg, partial_sum)
             return partial_sum
-        
+
         # Normalize attention scores
-        # attention_score =  accumulate_dot_product 
-        # result = attention_score * edge_scaling
+        scaled_scores = accumulate_dot_product * edge_scaling
 
-        #SCATTER_SOFTMAX
-        ##SCATTER_ADD
+        # SCATTER_SOFTMAX
+        ##SCATTER_ADDs
 
-        tkw.write(accumulate_dot_product ,out_V,elements_per_thread=STORE_ELEMS_PER_THREAD,mapping=mapping)
-
+        tkw.write(
+            scaled_scores,
+            out_V,
+            elements_per_thread=STORE_ELEMS_PER_THREAD,
+            mapping=mapping,
+        )
 
     # Hyperparams
     hyperparams = {
         ADDRESS_SPACE: GLOBAL_ADDRESS_SPACE,
-        M:8,
-        N:1,
-        K1:8,
+        M: 8,
+        N: 1,
+        K1: 8,
         BLOCK_M: 8,
-        BLOCK_N:1,
-        BLOCK_K1:8,
-        LOAD_ELEMS_PER_THREAD:1,
-        STORE_ELEMS_PER_THREAD:1,
+        BLOCK_N: 1,
+        BLOCK_K1: 8,
+        LOAD_ELEMS_PER_THREAD: 1,
+        STORE_ELEMS_PER_THREAD: 1,
     }
 
     options = WaveCompileOptions(
@@ -156,39 +164,41 @@ def test_neighbor_attention( mfma_variant: MMAType):
         use_scheduling_barriers=False,
         compile_to_mlir=False,
         kernel_usages=[
-        tkl.kernel_buffer.KernelBufferUsage.INPUT,   
-        tkl.kernel_buffer.KernelBufferUsage.INPUT, 
-        tkl.kernel_buffer.KernelBufferUsage.OUTPUT,  
+            tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
         ],
         print_signature=True,
         print_ir_before=["decompose_dot_mma"],
-        print_ir_after=["decompose_dot_mma"]
+        print_ir_after=["decompose_dot_mma"],
     )
     options = set_default_run_config(options)
     neighbor_attention = wave_compile(options, neighbor_attention)
     print(neighbor_attention.asm)
 
-    h_V_dst = torch.arange(8*8, dtype=torch.float16).reshape(8,8).contiguous().cuda()
-    
-    #h_E = torch.zeros((16, 8), dtype=torch.int32).contiguous().cuda()
-    mlp_weight = torch.ones(8*1, dtype=torch.float16).reshape(1,8).contiguous().cuda()
-
+    h_V_dst = torch.arange(8 * 8, dtype=torch.float16).reshape(8, 8).contiguous().cuda()
+    mlp_weight = (
+        torch.ones(8 * 1, dtype=torch.float16).reshape(1, 8).contiguous().cuda()
+    )
     output = torch.zeros((8, 1), dtype=torch.float32).contiguous().cuda()
 
     neighbor_attention(h_V_dst, mlp_weight, output)
 
+    scale = 1.0 / math.sqrt(16.0)
+
     def matmul_baseline(h_V_dst, mlp_weight):
-    # Treat `index` as matrix B, even though it's just ones
-        return torch.matmul(h_V_dst.to(torch.float16), mlp_weight.T.to(torch.float16))
+        result = torch.matmul(h_V_dst.to(torch.float16), mlp_weight.T.to(torch.float16))
+        return (result * scale).to(torch.float32)
 
     print("Input a:")
     print(h_V_dst.cpu())
-    print("Output:")  
+    print("Output:")
     print(output.cpu())
 
-    torch_output=matmul_baseline(h_V_dst,mlp_weight)
+    torch_output = matmul_baseline(h_V_dst, mlp_weight)
     print("torch_output:")
     print(torch_output)
+
 
 # GNN Message Passing – PiFold Code Implementation
 # This section documents the message passing logic implemented for the GNN in PiFold.
