@@ -1,0 +1,174 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.5.0
+rootdir: /home/aurore/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/scatter_max_test.py KernelSignature(a: KERNEL_BUFFER.INPUT.Memory[M].of(f32), index: KERNEL_BUFFER.INPUT.Memory[M].of(i32), lds: KERNEL_BUFFER.INPUT.Memory[M].of(f32), b: KERNEL_BUFFER.OUTPUT.Memory[M].of(f32), grid0: INDEX_VALUE, grid1: INDEX_VALUE)
+result_index {M: Mod($T0, 64) + 4*floor($T0/64)}
+F
+
+=================================== FAILURES ===================================
+____________________________ test_read_actual_data _____________________________
+
+    @require_e2e
+    def test_read_actual_data():
+        # Constraintss
+        constraints = [
+            tkw.HardwareConstraint(
+                threads_per_wave=64,
+                waves_per_block=(1, 1, 1),
+                vector_shapes={M: 8, N: LOAD_ELEMS_PER_THREAD},
+            ),
+            tkw.WorkgroupConstraint(M, BLOCK_M, 0),
+            tkw.WorkgroupConstraint(N, BLOCK_N, 1),
+            tkw.WaveConstraint(M, BLOCK_M / 2),
+            tkw.WaveConstraint(N, BLOCK_N),
+        ]
+
+        # Mapping (identity)
+        i = tkw.IndexMapping.iterator(0)
+        # j = tkw.IndexMapping.iterator(1)
+
+        # d0 = [tkw.IndexMapping.dynamic_val(i) for i in range(1)]
+        d0 = tkw.IndexMapping.dynamic_val(0)
+
+        mapping1 = tkw.IndexMapping(
+            num_iterators=1,
+            inputs={M: i},
+            outputs={M: i},
+        )
+        mapping = tkw.IndexMapping(
+            num_iterators=1,
+            inputs={M: d0},
+            outputs={M: i},
+            dynamic_val_mappings={M: i},
+        )
+
+        mapping_scatter = tkw.IndexMapping(
+            num_iterators=1,
+            inputs={M: i},
+            outputs={M: i},
+            dynamic_val_mappings={M: i},
+        )
+
+        # Define kernel
+        @tkw.wave(constraints)
+        def read_kernel(
+            a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
+            index: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
+            lds: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
+            b: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
+        ):
+
+            index_reg = tkw.read(
+                index, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping1
+            )
+
+            a_reg = tkw.read(a, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping1)
+
+            tkw.scatter_max(
+                a_reg,
+                index_reg,
+                dim=0,
+                memory=lds,
+                mapping=mapping1,
+                elements_per_thread=LOAD_ELEMS_PER_THREAD,
+            )
+
+            lds_reg = tkw.read(
+                lds, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping1
+            )
+            casted_lds_reg = tkw.cast(lds_reg, tkl.f32)
+
+            tkw.write(casted_lds_reg, b, elements_per_thread=STORE_ELEMS_PER_THREAD)
+
+        # Compile kernel
+        options = WaveCompileOptions(
+            subs={
+                M: 8,
+                N: 16,
+                BLOCK_M: 8,
+                BLOCK_N: 16,
+                LOAD_ELEMS_PER_THREAD: 1,
+                STORE_ELEMS_PER_THREAD: 1,
+                ADDRESS_SPACE: tkl.AddressSpace.SHARED_MEMORY.value,
+            },
+            kernel_usages=[
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
+            ],
+            compile_to_mlir=False,
+            canonicalize=True,
+            run_bench=False,
+            print_signature=True,
+            # print_ir_before=["expand_graph"],
+            # print_ir_after=["expand_graph"]
+        )
+        options = set_default_run_config(options)
+
+>       read_fn = wave_compile(options, read_kernel)
+
+tests/kernel/wave/attention/scatter_max_test.py:150:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+iree/turbine/kernel/wave/compile.py:157: in wave_compile
+    compiled_wave_vmfb = compile_to_vmfb(asm, options)
+iree/turbine/kernel/wave/utils/compile_utils.py:71: in compile_to_vmfb
+    res = compile_str(asm, target_backends=[options.backend], extra_args=flags)
+../../venv/lib/python3.10/site-packages/iree/compiler/tools/core.py:299: in compile_str
+    result = invoke_immediate(cl, immediate_input=input_bytes)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+command_line = ['/home/aurore/venv/lib/python3.10/site-packages/iree/compiler/tools/../_mlir_libs/iree-compile', '-', '--iree-input-t...-vm-bytecode-module-output-format=flatbuffer-binary', '--iree-hal-target-backends=rocm', '--mlir-print-debuginfo', ...]
+
+    def invoke_immediate(
+        command_line: List[str], *, input_file: Optional[bytes] = None, immediate_input=None
+    ):
+        """Invokes an immediate command.
+
+        This is separate from invoke_pipeline as it is simpler and supports more
+        complex input redirection, using recommended facilities for sub-processes
+        (less magic).
+
+        Note that this differs from the usual way of using subprocess.run or
+        subprocess.Popen().communicate() because we need to pump all of the error
+        streams individually and only pump pipes not connected to a different stage.
+        Uses threads to pump everything that is required.
+        """
+        if logger.isEnabledFor(logging.INFO):
+            logging.info("Invoke IREE Tool: %s", _quote_command_line(command_line))
+        run_args = {}
+        input_file_handle = None
+        stderr_handle = sys.stderr
+        try:
+            # Redirect input.
+            if input_file is not None:
+                input_file_handle = open(input_file, "rb")
+                run_args["stdin"] = input_file_handle
+            elif immediate_input is not None:
+                run_args["input"] = immediate_input
+
+            process = subprocess.run(command_line, capture_output=True, **run_args)
+            if process.returncode != 0:
+>               raise CompilerToolError(process)
+E               iree.compiler.tools.binaries.CompilerToolError: Error invoking IREE compiler tool iree-compile
+E               Error code: 1
+E               Diagnostics:
+E               <unknown>:0: error: 'llvm.cmpxchg' op operand #1 must be signless integer or LLVM pointer type, but got 'f32'
+E               <stdin>:4:3: error: failed to run translation of source executable to target executable for backend #hal.executable.target<"rocm", "rocm-hsaco-fb", {abi = "hip", iree.gpu.target = #iree_gpu.target<arch = "gfx90a", features = "", wgp = <compute =  fp64|fp32|fp16|int64|int32|int16|int8, storage =  b64|b32|b16|b8, subgroup =  shuffle|arithmetic, dot =  dp4xi8toi32, mma = [<MFMA_F32_16x16x8_BF16>, <MFMA_F32_32x32x4_BF16>, <MFMA_F64_16x16x4_F64>, <MFMA_F32_16x16x4_F32>, <MFMA_F32_16x16x16_F16>, <MFMA_F32_32x32x8_F16>, <MFMA_I32_16x16x16_I8>, <MFMA_I32_32x32x8_I8>], subgroup_size_choices = [64], max_workgroup_sizes = [1024, 1024, 1024], max_thread_count_per_workgroup = 1024, max_workgroup_memory_bytes = 65536, max_workgroup_counts = [2147483647, 2147483647, 2147483647], max_load_instruction_bits = 128, simds_per_wgp = 4, vgpr_space_bits = 8192>>, ukernels = "none"}>
+E                 stream.executable private @read_kernel {
+E                 ^
+E
+E
+E               Invoked with:
+E                iree-compile /home/aurore/venv/lib/python3.10/site-packages/iree/compiler/tools/../_mlir_libs/iree-compile - --iree-input-type=auto --iree-vm-bytecode-module-output-format=flatbuffer-binary --iree-hal-target-backends=rocm --mlir-print-debuginfo --mlir-print-op-on-diagnostic=false --iree-hal-target-backends=rocm --iree-vm-bytecode-module-strip-source-map=true --iree-opt-strip-assertions=true --iree-vm-target-truncate-unsupported-floats --iree-hip-target=gfx90a
+E
+E               Need more information? Set IREE_SAVE_TEMPS=/some/dir in your environment to save all artifacts and reproducers.
+
+../../venv/lib/python3.10/site-packages/iree/compiler/tools/binaries.py:199: CompilerToolError
+=========================== short test summary info ============================
+FAILED tests/kernel/wave/attention/scatter_max_test.py::test_read_actual_data
+============================== 1 failed in 2.01s ===============================

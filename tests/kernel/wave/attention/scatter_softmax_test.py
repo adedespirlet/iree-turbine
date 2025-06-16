@@ -85,10 +85,10 @@ def test_read_actual_data():
     # Define kernel
     @tkw.wave(constraints)
     def read_kernel(
-        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
+        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
         index: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
         lds_exp: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
-        lds_max: tkl.Memory[M, ADDRESS_SPACE, tkl.i32],
+        lds_max: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
         b: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
     ):
         """
@@ -121,15 +121,15 @@ def test_read_actual_data():
             mapping=mapping_gather,
             mapping_dynamic_vals=(index_reg,),
         )
-        casted_max_val = tkw.cast(max_value, tkl.f32)
+        # casted_max_val = tkw.cast(max_value, tkl.f32)
         substract = a_reg - max_value
-        casted_substract = tkw.cast(substract, tkl.f32)
+        # casted_substract = tkw.cast(substract, tkl.f32)
 
-        nominator = tkw.exp(casted_substract)
+        nominator = tkw.exp(substract)
 
         # Denominator calculation for softmax
-        casted_reg -= casted_max_val
-        exp = tkw.exp(casted_reg)
+        a_reg -= max_value
+        exp = tkw.exp(a_reg)
         tkw.scatter_add(
             exp,
             index_reg,

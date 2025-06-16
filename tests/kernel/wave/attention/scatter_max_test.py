@@ -93,9 +93,9 @@ def test_read_actual_data():
     # Define kernel
     @tkw.wave(constraints)
     def read_kernel(
-        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
+        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
         index: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
-        lds: tkl.Memory[M, ADDRESS_SPACE, tkl.i32],
+        lds: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
         b: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
     ):
 
@@ -151,7 +151,7 @@ def test_read_actual_data():
     print(read_fn.asm)
     # Input tensors
 
-    input = device_arange(8, dtype=torch.int32).view(-1).contiguous()
+    input = device_arange(8, dtype=torch.float32).view(-1).contiguous()
     index = device_ones(8, dtype=torch.int32).view(-1).contiguous()
     outputsize = 8  # Number of output "rows" for scatter max
     lds = device_zeros(8, dtype=torch.int32).view(-1).contiguous()
