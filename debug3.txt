@@ -1,0 +1,241 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.5.0
+rootdir: /home/aurore/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/pifold_test.py KernelSignature(lds_max: KERNEL_BUFFER.INPUT.Memory[M, N].of(i32), out_V: KERNEL_BUFFER.OUTPUT.Memory[M, N].of(i32), grid0: INDEX_VALUE, grid1: INDEX_VALUE)
+#map = affine_map<()[s0] -> ((s0 floordiv 64) * 8)>
+#translation = #iree_codegen.translation_info<pipeline = None workgroup_size = [64, 1, 1] subgroup_size = 64>
+module attributes {transform.with_named_sequence} {
+  stream.executable private @neighbor_attention {
+    stream.executable.export public @neighbor_attention workgroups() -> (index, index, index) {
+      %c1 = arith.constant 1 : index
+      stream.return %c1, %c1, %c1 : index, index, index
+    }
+    builtin.module {
+      func.func @neighbor_attention(%arg0: !stream.binding, %arg1: !stream.binding) attributes {translation_info = #translation} {
+        %cst = arith.constant dense<0> : vector<1xi32>
+        %c8 = arith.constant 8 : index
+        %c0 = arith.constant 0 : index
+        %thread_id_x = gpu.thread_id  x
+        %0 = stream.binding.subspan %arg0[%c0] : !stream.binding -> memref<8x1xi32, strided<[1, 1], offset: ?>>
+        %1 = affine.apply #map()[%thread_id_x]
+        %2 = arith.cmpi slt, %1, %c8 : index
+        %3 = vector.splat %2 : vector<1xi1>
+        %4 = vector.maskedload %0[%1, %c0], %3, %cst : memref<8x1xi32, strided<[1, 1], offset: ?>>, vector<1xi1>, vector<1xi32> into vector<1xi32>
+        %5 = stream.binding.subspan %arg1[%c0] : !stream.binding -> memref<8x1xi32, strided<[1, 1], offset: ?>>
+        vector.maskedstore %5[%1, %c0], %3, %4 : memref<8x1xi32, strided<[1, 1], offset: ?>>, vector<1xi1>, vector<1xi32>
+        return
+      }
+    }
+  }
+  func.func @isolated_benchmark(%arg0: tensor<8x1xi32>, %arg1: tensor<8x1xi32>) -> tensor<8x1xi32> {
+    %0 = flow.dispatch @neighbor_attention::@neighbor_attention(%arg0, %arg1) : (tensor<8x1xi32>, tensor<8x1xi32>) -> %arg1
+    return %0 : tensor<8x1xi32>
+  }
+}
+
+F
+
+=================================== FAILURES ===================================
+____________________ test_neighbor_attention[mfma_variant0] ____________________
+
+mfma_variant = GenericDot(out_vec_size=1, k_vec_size=1, k_mult=8, along_dim=<MMAOperand.M: 0>)
+
+    @require_e2e
+    @pytest.mark.parametrize(
+        "mfma_variant",
+        [
+            GenericDot(k_mult=8, k_vec_size=1, out_vec_size=1, along_dim=MMAOperand.M),
+        ],
+    )
+    def test_neighbor_attention(mfma_variant: MMAType):
+
+        # mfma_variant=(MMAType.F32_32x32x8_F16, MMAType.F32_32x32x8_F16)
+
+        # if mfma_variant[1] == MMAType.F32_16x16x16_F16:
+        #     Mvec = 16
+        #     Nvec = 16
+        # if mfma_variant[1] == MMAType.F32_32x32x8_F16:
+        #     Mvec = 32
+        #     Nvec = 32
+
+        constraints = [
+            tkw.WorkgroupConstraint(M, BLOCK_M, 0),
+            tkw.WorkgroupConstraint(N, BLOCK_N, 1),
+            tkw.WaveConstraint(M, BLOCK_M),
+            tkw.WaveConstraint(N, BLOCK_N),
+            tkw.TilingConstraint(K1, BLOCK_K1),
+            tkw.HardwareConstraint(
+                threads_per_wave=64,
+                waves_per_block=(1, 1, 1),
+                mma_type=mfma_variant,
+                vector_shapes={M: 8, N: 1, K1: 8},
+            ),
+        ]
+
+        i = tkw.IndexMapping.iterator(0)
+        j = tkw.IndexMapping.iterator(1)
+        k = tkw.IndexMapping.iterator(2)
+        mapping_double = tkw.IndexMapping(
+            num_iterators=2,
+            inputs={M: i, N: j},
+            outputs={M: i, N: j},
+        )
+
+        mapping1 = tkw.IndexMapping(
+            num_iterators=2,
+            inputs={M: i, N: j},
+            outputs={M: i, N: j},
+        )
+
+        # scale = 1.0 / math.sqrt(2.0)
+        scale = 1  # set as integer because scatter_max only allows integer values for now
+
+        @tkw.wave(constraints)
+        def neighbor_attention(
+            concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.i32],
+            mlp_weights: tkl.Memory[N, K1, ADDRESS_SPACE, tkl.i32],
+            edge_dest: tkl.Memory[M, N, ADDRESS_SPACE, tkl.i32],
+            lds_max: tkl.Memory[M, N, ADDRESS_SPACE, tkl.i32],
+            out_V: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
+        ):
+            edge_scaling = tkl.Register[N, M, tkl.i32](scale)
+            zero_accumulator = tkl.Register[M, N, tkl.i32](0)
+
+            @tkw.iterate(K1, init_args=[zero_accumulator])
+            def accumulate_dot_product(
+                partial_sum: tkl.Register[M, N, tkl.i32]
+            ) -> tkl.Register[M, N, tkl.i32]:
+                # Gather destination node features, pass through MLP and obtain attention score for each edge : perform h_V_dst * mlp_weight
+                concat_feat_reg = tkw.read(
+                    concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD
+                )
+                mlp_reg = tkw.read(mlp_weights, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+                partial_sum = tkw.mma(concat_feat_reg, mlp_reg, partial_sum)
+                return partial_sum
+
+            # Normalize attention scores
+            scaled_scores = accumulate_dot_product * edge_scaling
+
+            # SCATTER_SOFTMAX
+            edge_dest_reg = tkw.read(edge_dest, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+            tkw.scatter_max(
+                scaled_scores,
+                edge_dest_reg,
+                dim=0,
+                memory=lds_max,
+                mapping=mapping_double,
+                elements_per_thread=LOAD_ELEMS_PER_THREAD,
+            )
+
+            lds_reg = tkw.read(lds_max, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+            tkw.write(
+                lds_reg,
+                out_V,
+                elements_per_thread=STORE_ELEMS_PER_THREAD,
+            )
+
+        # Hyperparams
+        hyperparams = {
+            ADDRESS_SPACE: GLOBAL_ADDRESS_SPACE,
+            M: 8,
+            N: 1,
+            K1: 8,
+            BLOCK_M: 8,
+            BLOCK_N: 1,
+            BLOCK_K1: 8,
+            LOAD_ELEMS_PER_THREAD: 1,
+            STORE_ELEMS_PER_THREAD: 1,
+        }
+
+        options = WaveCompileOptions(
+            subs=hyperparams,
+            canonicalize=True,
+            run_bench=False,
+            schedule=SchedulingType.NONE,
+            use_scheduling_barriers=False,
+            compile_to_mlir=False,
+            print_signature=True,
+            kernel_usages=[
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.INPUT,
+                tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
+                tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
+            ],
+        )
+        options = set_default_run_config(options)
+        neighbor_attention = wave_compile(options, neighbor_attention)
+        print(neighbor_attention.asm)
+
+        concat_dst_edge_features = (
+            device_arange(8 * 8, dtype=torch.int32).reshape(8, 8).contiguous()
+        )
+        mlp_weight = device_ones(8, dtype=torch.int32).reshape(1, 8).contiguous()
+        edge_dest = device_ones(8, dtype=torch.int32).reshape(8, 1).contiguous()
+        lds_max = device_zeros(8, dtype=torch.float32).reshape(8, 1).contiguous()
+        out = device_zeros(8, dtype=torch.int32).reshape(8, 1).contiguous()
+
+>       neighbor_attention(concat_dst_edge_features, mlp_weight, edge_dest, lds_max, out)
+
+tests/kernel/wave/attention/pifold_test.py:204:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+iree/turbine/kernel/wave/compile.py:46: in __call__
+    return self.invoke(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <iree.turbine.kernel.wave.compile.WaveKernel object at 0x7293bf98ae00>
+args = (tensor([[ 0,  1,  2,  3,  4,  5,  6,  7],
+        [ 8,  9, 10, 11, 12, 13, 14, 15],
+        [16, 17, 18, 19, 20, 21, ...0],
+        [0],
+        [0],
+        [0],
+        [0],
+        [0],
+        [0]], device='cuda:0', dtype=torch.int32))
+kwargs = {}, scalar_args = []
+kernel_inputs = [tensor([[ 0,  1,  2,  3,  4,  5,  6,  7],
+        [ 8,  9, 10, 11, 12, 13, 14, 15],
+        [16, 17, 18, 19, 20, 21, ...      [48, 49, 50, 51, 52, 53, 54, 55],
+        [56, 57, 58, 59, 60, 61, 62, 63]], device='cuda:0', dtype=torch.int32)]
+kernel_outputs = [tensor([[1, 1, 1, 1, 1, 1, 1, 1]], device='cuda:0', dtype=torch.int32)]
+usage_idx = 2
+arg = tensor([[1],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1]], device='cuda:0', dtype=torch.int32)
+usage = <KernelBufferUsage.OUTPUT: 2>
+
+    def invoke(self, *args, **kwargs):
+        """
+        Invokes the wave kernel with the given arguments.
+        Returns the assembly code of the compiled kernel.
+        """
+
+        # Segregate args into kernel tensor and scalars.
+        scalar_args = []
+        kernel_inputs, kernel_outputs = [], []
+
+        # Partition arguments into kernel inputs and outputs.
+        # ToDo: we should expose the `usage` as a property in binding desc
+        #       so that we can reduce the code and use `zip``.
+        usage_idx = 0
+        for arg in args:
+            if not isinstance(arg, torch.Tensor):
+                scalar_args.append(arg)
+                continue
+>           usage = self.options.kernel_usages[usage_idx]
+E           IndexError: list index out of range
+
+iree/turbine/kernel/wave/compile.py:66: IndexError
+=========================== short test summary info ============================
+FAILED tests/kernel/wave/attention/pifold_test.py::test_neighbor_attention[mfma_variant0]
+============================== 1 failed in 2.28s ===============================

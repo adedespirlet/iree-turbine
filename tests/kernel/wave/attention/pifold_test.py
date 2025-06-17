@@ -101,27 +101,36 @@ def test_neighbor_attention(mfma_variant: MMAType):
     i = tkw.IndexMapping.iterator(0)
     j = tkw.IndexMapping.iterator(1)
     k = tkw.IndexMapping.iterator(2)
-    mapping = tkw.IndexMapping(
+    mapping_double = tkw.IndexMapping(
         num_iterators=2,
         inputs={M: i, N: j},
         outputs={M: i, N: j},
     )
 
-    scale = 1.0 / math.sqrt(16.0)
+    mapping1 = tkw.IndexMapping(
+        num_iterators=2,
+        inputs={M: i, N: j},
+        outputs={M: i, N: j},
+    )
+
+    # scale = 1.0 / math.sqrt(2.0)
+    scale = 1  # set as integer because scatter_max only allows integer values for now
 
     @tkw.wave(constraints)
     def neighbor_attention(
-        concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.f16],
-        mlp_weights: tkl.Memory[N, K1, ADDRESS_SPACE, tkl.f16],
-        out_V: tkl.Memory[M, N, ADDRESS_SPACE, tkl.f32],
+        concat_dst_edge_features: tkl.Memory[M, K1, ADDRESS_SPACE, tkl.i32],
+        mlp_weights: tkl.Memory[N, K1, ADDRESS_SPACE, tkl.i32],
+        edge_dest: tkl.Memory[M, N, ADDRESS_SPACE, tkl.i32],
+        lds_max: tkl.Memory[M, N, ADDRESS_SPACE, tkl.i32],
+        out_V: tkl.Memory[M, N, GLOBAL_ADDRESS_SPACE, tkl.i32],
     ):
-        edge_scaling = tkl.Register[N, M, tkl.f32](scale)
-        zero_accumulator = tkl.Register[M, N, tkl.f32](0.0)
+        edge_scaling = tkl.Register[N, M, tkl.i32](scale)
+        zero_accumulator = tkl.Register[M, N, tkl.i32](0)
 
         @tkw.iterate(K1, init_args=[zero_accumulator])
         def accumulate_dot_product(
-            partial_sum: tkl.Register[M, N, tkl.f32]
-        ) -> tkl.Register[M, N, tkl.f32]:
+            partial_sum: tkl.Register[M, N, tkl.i32]
+        ) -> tkl.Register[M, N, tkl.i32]:
             # Gather destination node features, pass through MLP and obtain attention score for each edge : perform h_V_dst * mlp_weight
             concat_feat_reg = tkw.read(
                 concat_dst_edge_features, elements_per_thread=LOAD_ELEMS_PER_THREAD
@@ -134,13 +143,21 @@ def test_neighbor_attention(mfma_variant: MMAType):
         scaled_scores = accumulate_dot_product * edge_scaling
 
         # SCATTER_SOFTMAX
-        ##SCATTER_ADDs
-
-        tkw.write(
+        edge_dest_reg = tkw.read(edge_dest, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+        tkw.scatter_max(
             scaled_scores,
+            edge_dest_reg,
+            dim=0,
+            memory=lds_max,
+            mapping=mapping_double,
+            elements_per_thread=LOAD_ELEMS_PER_THREAD,
+        )
+
+        lds_reg = tkw.read(lds_max, elements_per_thread=LOAD_ELEMS_PER_THREAD)
+        tkw.write(
+            lds_reg,
             out_V,
             elements_per_thread=STORE_ELEMS_PER_THREAD,
-            mapping=mapping,
         )
 
     # Hyperparams
@@ -163,26 +180,28 @@ def test_neighbor_attention(mfma_variant: MMAType):
         schedule=SchedulingType.NONE,
         use_scheduling_barriers=False,
         compile_to_mlir=False,
+        print_signature=True,
         kernel_usages=[
             tkl.kernel_buffer.KernelBufferUsage.INPUT,
             tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.INPUT,
+            tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
             tkl.kernel_buffer.KernelBufferUsage.OUTPUT,
         ],
-        print_signature=True,
-        print_ir_before=["decompose_dot_mma"],
-        print_ir_after=["decompose_dot_mma"],
     )
     options = set_default_run_config(options)
     neighbor_attention = wave_compile(options, neighbor_attention)
     print(neighbor_attention.asm)
 
-    h_V_dst = torch.arange(8 * 8, dtype=torch.float16).reshape(8, 8).contiguous().cuda()
-    mlp_weight = (
-        torch.ones(8 * 1, dtype=torch.float16).reshape(1, 8).contiguous().cuda()
+    concat_dst_edge_features = (
+        device_arange(8 * 8, dtype=torch.int32).reshape(8, 8).contiguous()
     )
-    output = torch.zeros((8, 1), dtype=torch.float32).contiguous().cuda()
+    mlp_weight = device_ones(8, dtype=torch.int32).reshape(1, 8).contiguous()
+    edge_dest = device_ones(8, dtype=torch.int32).reshape(8, 1).contiguous()
+    lds_max = device_zeros(8, dtype=torch.float32).reshape(8, 1).contiguous()
+    output = device_zeros(8, dtype=torch.int32).reshape(8, 1).contiguous()
 
-    neighbor_attention(h_V_dst, mlp_weight, output)
+    neighbor_attention(concat_dst_edge_features, mlp_weight, edge_dest, lds_max, output)
 
     scale = 1.0 / math.sqrt(16.0)
 
@@ -191,11 +210,11 @@ def test_neighbor_attention(mfma_variant: MMAType):
         return (result * scale).to(torch.float32)
 
     print("Input a:")
-    print(h_V_dst.cpu())
+    print(concat_dst_edge_features.cpu())
     print("Output:")
     print(output.cpu())
 
-    torch_output = matmul_baseline(h_V_dst, mlp_weight)
+    torch_output = matmul_baseline(concat_dst_edge_features, mlp_weight)
     print("torch_output:")
     print(torch_output)
 
