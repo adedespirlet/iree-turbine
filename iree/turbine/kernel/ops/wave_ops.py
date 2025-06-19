@@ -2374,6 +2374,7 @@ class ScatterAdd(CustomOp):
     memory: fx.Node
     mapping: Optional[IndexMapping] = None
     elements_per_thread: Optional[Any] = None
+    bounds: Optional[dict[IndexSymbol, IndexExpr]] = None
    
     @property
     def indexing_dims(self) -> list[IndexSymbol]:
@@ -2399,5 +2400,8 @@ class ScatterAdd(CustomOp):
     def register_index(self) -> dict[IndexSymbol, IndexSequence]:
         custom = get_custom(self.register_src)
         return custom.index
+    @property
+    def has_side_effects(self) -> bool:
+        return True
 
         

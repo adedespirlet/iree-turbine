@@ -808,7 +808,7 @@ def handle_scatter_add(emitter: WaveEmitter, node: fx.Node):
 
     """
     try:
-        register_src,register_idx, dim, memory,mapping ,elements_per_thread= node.args  
+        register_src,register_idx, dim, memory,mapping ,elements_per_thread, bounds= node.args  
     except ValueError as e:
         raise ValidationError("Malformed arguments") from e
 
@@ -835,7 +835,7 @@ def handle_scatter_add(emitter: WaveEmitter, node: fx.Node):
     #result_index {B: $WG2, M: 2*$T0 + 128*$WG0 + 128*floor($T0/64), N: $WG1}
     result_index = {key: m.subs(subs) for key, m in zip(output_shape, index_mapping)}
 
-    mask = _build_mask(emitter, index, elements_per_thread)
+    mask = _build_mask(emitter, index, elements_per_thread,bounds)
     if mask is None:
         mask_vec_type = VectorType.get([elements_per_thread], IntegerType.get_signless(1))
         mask = _constant_mask(mask_vec_type)
