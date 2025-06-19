@@ -1,3 +1,6 @@
+
+
+
 # Copyright 2025 The IREE Authors
 #
 # Licensed under the Apache License v2.0 with LLVM Exceptions.
@@ -85,10 +88,10 @@ def test_read_actual_data():
     # Define kernel
     @tkw.wave(constraints)
     def read_kernel(
-        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
+        a: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
         index: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.i32],
         lds_exp: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
-        lds_max: tkl.Memory[M, ADDRESS_SPACE, tkl.f32],
+        lds_max: tkl.Memory[M, ADDRESS_SPACE, tkl.i32],
         b: tkl.Memory[M, GLOBAL_ADDRESS_SPACE, tkl.f32],
     ):
         """
@@ -121,15 +124,15 @@ def test_read_actual_data():
             mapping=mapping_gather,
             mapping_dynamic_vals=(index_reg,),
         )
-        # casted_max_val = tkw.cast(max_value, tkl.f32)
+        casted_max_val = tkw.cast(max_value, tkl.f32)
         substract = a_reg - max_value
-        # casted_substract = tkw.cast(substract, tkl.f32)
+        casted_substract = tkw.cast(substract, tkl.f32)
 
-        nominator = tkw.exp(substract)
+        nominator = tkw.exp(casted_substract)
 
         # Denominator calculation for softmax
-        a_reg -= max_value
-        exp = tkw.exp(a_reg)
+        casted_reg -= casted_max_val
+        exp = tkw.exp(casted_reg)
         tkw.scatter_add(
             exp,
             index_reg,
@@ -177,6 +180,7 @@ def test_read_actual_data():
         # print_ir_after=["expand_graph"]
     )
     options = set_default_run_config(options)
+    options.target="gfx942"
 
     read_fn = wave_compile(options, read_kernel)
     print(read_fn.asm)
