@@ -796,9 +796,6 @@ def handle_write(emitter: WaveEmitter, node: fx.Node):
         )
 
 
-
-
-
 def _handle_scatter_op(
     emitter: WaveEmitter,
     node: fx.Node,
@@ -815,7 +812,7 @@ def _handle_scatter_op(
         ) = node.args
     except ValueError as e:
         raise ValidationError("Malformed arguments") from e
-    
+
     ##somehow in write Op it is done implicitly
     for constraint in emitter.constraints:
         if isinstance(constraint, (HardwareConstraint)):
@@ -895,7 +892,7 @@ def _handle_scatter_op(
     result_type = VectorType.get([elements_per_thread], register_src.type.element_type)
     result_vector = vector_d.from_elements(result_type, results)
 
-    
+
 @handle_op(scatter_add)
 def handle_scatter_add(emitter: WaveEmitter, node: fx.Node):
     register_src = cast_py_value(emitter, node.args[0])

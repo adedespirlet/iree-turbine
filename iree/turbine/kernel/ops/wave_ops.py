@@ -2370,10 +2370,11 @@ class ScatterAdd(CustomOp):
     def register_index(self) -> dict[IndexSymbol, IndexSequence]:
         custom = get_custom(self.register_src)
         return custom.index
-    
+
     @property
     def has_side_effects(self) -> bool:
         return True
+
 
 @define_op("scatter_max")
 @dataclass
@@ -2409,7 +2410,7 @@ class ScatterMax(CustomOp):
     def register_index(self) -> dict[IndexSymbol, IndexSequence]:
         custom = get_custom(self.register_src)
         return custom.index
-    
+
     @property
     def has_side_effects(self) -> bool:
         return True

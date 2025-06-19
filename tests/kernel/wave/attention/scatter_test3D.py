@@ -47,10 +47,15 @@ LOAD_ELEMS_PER_THREAD = tkl.sym.LOAD_ELEMS_PER_THREAD
 STORE_ELEMS_PER_THREAD = tkl.sym.STORE_ELEMS_PER_THREAD
 ADDRESS_SPACE = tkl.sym.ADDRESS_SPACE
 
+
 @require_e2e
 def test_read_actual_data():
     constraints = [
-        tkw.HardwareConstraint(threads_per_wave=64, waves_per_block=(1, 1, 1), vector_shapes={B: 1, M: 16, N: LOAD_ELEMS_PER_THREAD}),
+        tkw.HardwareConstraint(
+            threads_per_wave=64,
+            waves_per_block=(1, 1, 1),
+            vector_shapes={B: 1, M: 16, N: LOAD_ELEMS_PER_THREAD},
+        ),
         tkw.WorkgroupConstraint(M, BLOCK_M, 0),
         tkw.WorkgroupConstraint(N, BLOCK_N, 1),
         tkw.WorkgroupConstraint(B, 1, 2),
@@ -77,9 +82,20 @@ def test_read_actual_data():
     ):
         a_reg = tkw.read(a, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping)
         index_reg = tkw.read(index, elements_per_thread=LOAD_ELEMS_PER_THREAD)
-        tkw.scatter_add(a_reg, index_reg, dim=1, memory=lds, mapping=mapping, elements_per_thread=LOAD_ELEMS_PER_THREAD)
-        lds_reg = tkw.read(lds, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping)
-        tkw.write(lds_reg, b, elements_per_thread=STORE_ELEMS_PER_THREAD, mapping=mapping)
+        tkw.scatter_add(
+            a_reg,
+            index_reg,
+            dim=1,
+            memory=lds,
+            mapping=mapping,
+            elements_per_thread=LOAD_ELEMS_PER_THREAD,
+        )
+        lds_reg = tkw.read(
+            lds, elements_per_thread=LOAD_ELEMS_PER_THREAD, mapping=mapping
+        )
+        tkw.write(
+            lds_reg, b, elements_per_thread=STORE_ELEMS_PER_THREAD, mapping=mapping
+        )
 
     options = WaveCompileOptions(
         subs={
@@ -108,7 +124,12 @@ def test_read_actual_data():
     read_fn = wave_compile(options, read_kernel)
     print(read_fn.asm)
 
-    input = torch.arange(1*16*16, dtype=torch.int32).reshape(1, 16, 16).contiguous().cuda()
+    input = (
+        torch.arange(1 * 16 * 16, dtype=torch.int32)
+        .reshape(1, 16, 16)
+        .contiguous()
+        .cuda()
+    )
     index = torch.ones((1, 16, 16), dtype=torch.int32).contiguous().cuda()
     lds = torch.zeros((1, 16, 16), dtype=torch.int32).contiguous().cuda()
     output = torch.zeros((1, 16, 16), dtype=torch.int32).contiguous().cuda()
@@ -119,7 +140,7 @@ def test_read_actual_data():
     print(input.cpu())
     print("Input index:")
     print(index.cpu())
-    print("Output:")  
+    print("Output:")
     print(output.cpu())
 
     def scatter_baseline(input, index):
