@@ -298,7 +298,7 @@ def get_largest_index_and_size(
 
     sorted_values = sorted(
         [
-            (i, dim, sympy.simplify(subs_idxc(index.size)))
+            (i, dim, subs_idxc(index.size))
             for i, (dim, index) in enumerate(indices.items())
         ],
         # x[0] is the index of the dimension.

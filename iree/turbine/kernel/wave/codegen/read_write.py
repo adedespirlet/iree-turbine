@@ -27,15 +27,10 @@ from ...compiler.ir import (
     memref_d,
     vector_d,
 )
-<<<<<<< HEAD
-
-from ...compiler.base import ValidationError
-=======
 from iree.turbine.aot.support.ir_utils import (
     _is_float_type,
     _is_integer_like_type,
 )
->>>>>>> 483ae84 (xAdd scatter_add, scatter_max, and scatter_softmax support)
 from ...compiler.utils import strides_from_symbolic_shape
 from ...compiler.builder import IRProxyValue
 from ...compiler.vector_codegen import (
@@ -820,8 +815,6 @@ def _handle_scatter_op(
         ) = node.args
     except ValueError as e:
         raise ValidationError("Malformed arguments") from e
-    
-    ##somehow in write Op it is done implicitly
     for constraint in emitter.constraints:
         if isinstance(constraint, (HardwareConstraint)):
             node.vector_shapes = constraint.vector_shapes
@@ -830,7 +823,6 @@ def _handle_scatter_op(
     elements_per_thread = int(cast_py_literal(emitter, elements_per_thread))
     cast_vector(emitter, register_idx, element_type=IndexType.get())
 
-    # Build output indices
     index_mapping = mapping.map_output_indices(output_shape)
 
     idxc = IndexingContext.current()
@@ -841,7 +833,6 @@ def _handle_scatter_op(
         (sym, expr.start) for sym, expr in zip(iters.keys(), index.values())
     ] + list(idxc.subs.items())
 
-    # result_index {B: $WG2, M: 2*$T0 + 128*$WG0 + 128*floor($T0/64), N: $WG1}
     result_index = {key: m.subs(subs) for key, m in zip(output_shape, index_mapping)}
 
     mask = _build_mask(emitter, index, elements_per_thread)
@@ -851,7 +842,6 @@ def _handle_scatter_op(
         )
         mask = _constant_mask(mask_vec_type)
 
-    ##TODO: should not compute the indices at scatter location because its not necessary
     start_indices, start_indices_wg, start_indices_th = _build_start_indices(
         emitter, result_index
     )
@@ -875,11 +865,9 @@ def _handle_scatter_op(
                 f"Invalid scatter dim {dim} for rank-{len(indices)} memory"
             )
 
-        # Replace the scatter dim in result_index with index[i]
-        # result_index {B: $WG2, M: index[i], N: $WG1}
         indices[dim] = index_elem
 
-        ##in case 4 elements per thread are used, makes sure values are stored at the right non-scatter dimension with
+        # In case 4 elements per thread are used, makes sure values are stored at the right non-scatter dimension
         if elements_per_thread > 1:
             other_dims = [d for d in range(len(indices)) if d != dim]
             if other_dims:
@@ -890,13 +878,9 @@ def _handle_scatter_op(
                 )
             else:
                 pass
-
-        # result = memref_d.atomic_rmw(arith_d.AtomicRMWKind.maxs, reg_elem, memory, indices)
         result = memref_d.atomic_rmw(rmw_kind, reg_elem, memory, indices)
-
         results.append(result)
 
-    # Create a vector from the results
     result_type = VectorType.get([elements_per_thread], register_src.type.element_type)
     result_vector = vector_d.from_elements(result_type, results)
 
