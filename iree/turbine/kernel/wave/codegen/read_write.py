@@ -42,7 +42,7 @@ from ...compiler.vector_codegen import (
     cast_py_value,
 )
 
-from ...ops.wave_ops import get_custom, read, write, scatter_add, CustomOp
+from ...ops.wave_ops import get_custom, read, write, scatter_add, scatter_max, CustomOp
 
 from ..utils.general_utils import get_fastest_index, infer_dim
 from ..utils.symbol_utils import safe_subs, subs_idxc
@@ -894,4 +894,15 @@ def handle_scatter_add(emitter: WaveEmitter, node: fx.Node):
         rmw_kind = arith_d.AtomicRMWKind.addf
     else:
         rmw_kind = arith_d.AtomicRMWKind.addi
+    _handle_scatter_op(emitter, node, rmw_kind)
+
+
+@handle_op(scatter_max)
+def handle_scatter_max(emitter: WaveEmitter, node: fx.Node):
+    register_src = cast_py_value(emitter, node.args[0])
+    src_data_type = get_type_or_element_type(register_src.ir_value.type)
+    if _is_float_type(src_data_type):
+        rmw_kind = arith_d.AtomicRMWKind.maximumf
+    else:
+        rmw_kind = arith_d.AtomicRMWKind.maxs
     _handle_scatter_op(emitter, node, rmw_kind)
