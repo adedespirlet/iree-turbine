@@ -1,0 +1,527 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-8.0.0, pluggy-1.6.0
+rootdir: /home/adespirl/git/iree-turbine
+configfile: setup.cfg
+plugins: xdist-3.5.0
+collected 1 item
+
+tests/kernel/wave/attention/pifold_neighbour_attention_test.py #map = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32)>
+#map1 = affine_map<()[s0] -> (s0 mod 32)>
+#map2 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 2)>
+#map3 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 4)>
+#map4 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 6)>
+#map5 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 8)>
+#map6 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 10)>
+#map7 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 12)>
+#map8 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 14)>
+#map9 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 16)>
+#map10 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 18)>
+#map11 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 20)>
+#map12 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 22)>
+#map13 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 24)>
+#map14 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 26)>
+#map15 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 28)>
+#map16 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 30)>
+#translation = #iree_codegen.translation_info<pipeline = None workgroup_size = [64, 1, 1] subgroup_size = 64>
+module attributes {transform.with_named_sequence} {
+  stream.executable private @neighbor_attention {
+    stream.executable.export public @neighbor_attention workgroups() -> (index, index, index) {
+      %c1 = arith.constant 1 : index
+      stream.return %c1, %c1, %c1 : index, index, index
+    }
+    builtin.module {
+      func.func @neighbor_attention(%arg0: !stream.binding, %arg1: !stream.binding, %arg2: !stream.binding, %arg3: !stream.binding, %arg4: !stream.binding, %arg5: !stream.binding, %arg6: !stream.binding, %arg7: !stream.binding) attributes {translation_info = #translation} {
+        %c16_i32 = arith.constant 16 : i32
+        %c8_i32 = arith.constant 8 : i32
+        %c4_i32 = arith.constant 4 : i32
+        %c2_i32 = arith.constant 2 : i32
+        %c64_i32 = arith.constant 64 : i32
+        %c1_i32 = arith.constant 1 : i32
+        %c0 = arith.constant 0 : index
+        %cst = arith.constant dense<0.000000e+00> : vector<1xf32>
+        %thread_id_x = gpu.thread_id  x
+        %0 = stream.binding.subspan %arg0[%c0] : !stream.binding -> memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %1 = stream.binding.subspan %arg1[%c0] : !stream.binding -> memref<1x32xf32, strided<[32, 1], offset: ?>>
+        %2 = affine.apply #map()[%thread_id_x]
+        %3 = affine.apply #map1()[%thread_id_x]
+        %4 = memref.load %0[%2, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %5 = affine.apply #map2()[%thread_id_x]
+        %6 = memref.load %0[%5, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %7 = affine.apply #map3()[%thread_id_x]
+        %8 = memref.load %0[%7, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %9 = affine.apply #map4()[%thread_id_x]
+        %10 = memref.load %0[%9, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %11 = affine.apply #map5()[%thread_id_x]
+        %12 = memref.load %0[%11, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %13 = affine.apply #map6()[%thread_id_x]
+        %14 = memref.load %0[%13, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %15 = affine.apply #map7()[%thread_id_x]
+        %16 = memref.load %0[%15, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %17 = affine.apply #map8()[%thread_id_x]
+        %18 = memref.load %0[%17, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %19 = affine.apply #map9()[%thread_id_x]
+        %20 = memref.load %0[%19, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %21 = affine.apply #map10()[%thread_id_x]
+        %22 = memref.load %0[%21, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %23 = affine.apply #map11()[%thread_id_x]
+        %24 = memref.load %0[%23, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %25 = affine.apply #map12()[%thread_id_x]
+        %26 = memref.load %0[%25, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %27 = affine.apply #map13()[%thread_id_x]
+        %28 = memref.load %0[%27, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %29 = affine.apply #map14()[%thread_id_x]
+        %30 = memref.load %0[%29, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %31 = affine.apply #map15()[%thread_id_x]
+        %32 = memref.load %0[%31, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %33 = affine.apply #map16()[%thread_id_x]
+        %34 = memref.load %0[%33, %3] : memref<32x32xf32, strided<[32, 1], offset: ?>>
+        %35 = vector.load %1[%c0, %3] : memref<1x32xf32, strided<[32, 1], offset: ?>>, vector<1xf32>
+        %36 = vector.extract %35[0] : f32 from vector<1xf32>
+        %37 = arith.mulf %4, %36 : f32
+        %38 = vector.splat %37 : vector<1xf32>
+        %shuffleResult, %valid = gpu.shuffle  xor %38, %c1_i32, %c64_i32 : vector<1xf32>
+        %39 = arith.addf %38, %shuffleResult : vector<1xf32>
+        %shuffleResult_0, %valid_1 = gpu.shuffle  xor %39, %c2_i32, %c64_i32 : vector<1xf32>
+        %40 = arith.addf %39, %shuffleResult_0 : vector<1xf32>
+        %shuffleResult_2, %valid_3 = gpu.shuffle  xor %40, %c4_i32, %c64_i32 : vector<1xf32>
+        %41 = arith.addf %40, %shuffleResult_2 : vector<1xf32>
+        %shuffleResult_4, %valid_5 = gpu.shuffle  xor %41, %c8_i32, %c64_i32 : vector<1xf32>
+        %42 = arith.addf %41, %shuffleResult_4 : vector<1xf32>
+        %shuffleResult_6, %valid_7 = gpu.shuffle  xor %42, %c16_i32, %c64_i32 : vector<1xf32>
+        %43 = arith.addf %42, %shuffleResult_6 : vector<1xf32>
+        %44 = arith.addf %43, %cst : vector<1xf32>
+        %45 = arith.mulf %6, %36 : f32
+        %46 = vector.splat %45 : vector<1xf32>
+        %shuffleResult_8, %valid_9 = gpu.shuffle  xor %46, %c1_i32, %c64_i32 : vector<1xf32>
+        %47 = arith.addf %46, %shuffleResult_8 : vector<1xf32>
+        %shuffleResult_10, %valid_11 = gpu.shuffle  xor %47, %c2_i32, %c64_i32 : vector<1xf32>
+        %48 = arith.addf %47, %shuffleResult_10 : vector<1xf32>
+        %shuffleResult_12, %valid_13 = gpu.shuffle  xor %48, %c4_i32, %c64_i32 : vector<1xf32>
+        %49 = arith.addf %48, %shuffleResult_12 : vector<1xf32>
+        %shuffleResult_14, %valid_15 = gpu.shuffle  xor %49, %c8_i32, %c64_i32 : vector<1xf32>
+        %50 = arith.addf %49, %shuffleResult_14 : vector<1xf32>
+        %shuffleResult_16, %valid_17 = gpu.shuffle  xor %50, %c16_i32, %c64_i32 : vector<1xf32>
+        %51 = arith.addf %50, %shuffleResult_16 : vector<1xf32>
+        %52 = arith.addf %51, %cst : vector<1xf32>
+        %53 = arith.mulf %8, %36 : f32
+        %54 = vector.splat %53 : vector<1xf32>
+        %shuffleResult_18, %valid_19 = gpu.shuffle  xor %54, %c1_i32, %c64_i32 : vector<1xf32>
+        %55 = arith.addf %54, %shuffleResult_18 : vector<1xf32>
+        %shuffleResult_20, %valid_21 = gpu.shuffle  xor %55, %c2_i32, %c64_i32 : vector<1xf32>
+        %56 = arith.addf %55, %shuffleResult_20 : vector<1xf32>
+        %shuffleResult_22, %valid_23 = gpu.shuffle  xor %56, %c4_i32, %c64_i32 : vector<1xf32>
+        %57 = arith.addf %56, %shuffleResult_22 : vector<1xf32>
+        %shuffleResult_24, %valid_25 = gpu.shuffle  xor %57, %c8_i32, %c64_i32 : vector<1xf32>
+        %58 = arith.addf %57, %shuffleResult_24 : vector<1xf32>
+        %shuffleResult_26, %valid_27 = gpu.shuffle  xor %58, %c16_i32, %c64_i32 : vector<1xf32>
+        %59 = arith.addf %58, %shuffleResult_26 : vector<1xf32>
+        %60 = arith.addf %59, %cst : vector<1xf32>
+        %61 = arith.mulf %10, %36 : f32
+        %62 = vector.splat %61 : vector<1xf32>
+        %shuffleResult_28, %valid_29 = gpu.shuffle  xor %62, %c1_i32, %c64_i32 : vector<1xf32>
+        %63 = arith.addf %62, %shuffleResult_28 : vector<1xf32>
+        %shuffleResult_30, %valid_31 = gpu.shuffle  xor %63, %c2_i32, %c64_i32 : vector<1xf32>
+        %64 = arith.addf %63, %shuffleResult_30 : vector<1xf32>
+        %shuffleResult_32, %valid_33 = gpu.shuffle  xor %64, %c4_i32, %c64_i32 : vector<1xf32>
+        %65 = arith.addf %64, %shuffleResult_32 : vector<1xf32>
+        %shuffleResult_34, %valid_35 = gpu.shuffle  xor %65, %c8_i32, %c64_i32 : vector<1xf32>
+        %66 = arith.addf %65, %shuffleResult_34 : vector<1xf32>
+        %shuffleResult_36, %valid_37 = gpu.shuffle  xor %66, %c16_i32, %c64_i32 : vector<1xf32>
+        %67 = arith.addf %66, %shuffleResult_36 : vector<1xf32>
+        %68 = arith.addf %67, %cst : vector<1xf32>
+        %69 = arith.mulf %12, %36 : f32
+        %70 = vector.splat %69 : vector<1xf32>
+        %shuffleResult_38, %valid_39 = gpu.shuffle  xor %70, %c1_i32, %c64_i32 : vector<1xf32>
+        %71 = arith.addf %70, %shuffleResult_38 : vector<1xf32>
+        %shuffleResult_40, %valid_41 = gpu.shuffle  xor %71, %c2_i32, %c64_i32 : vector<1xf32>
+        %72 = arith.addf %71, %shuffleResult_40 : vector<1xf32>
+        %shuffleResult_42, %valid_43 = gpu.shuffle  xor %72, %c4_i32, %c64_i32 : vector<1xf32>
+        %73 = arith.addf %72, %shuffleResult_42 : vector<1xf32>
+        %shuffleResult_44, %valid_45 = gpu.shuffle  xor %73, %c8_i32, %c64_i32 : vector<1xf32>
+        %74 = arith.addf %73, %shuffleResult_44 : vector<1xf32>
+        %shuffleResult_46, %valid_47 = gpu.shuffle  xor %74, %c16_i32, %c64_i32 : vector<1xf32>
+        %75 = arith.addf %74, %shuffleResult_46 : vector<1xf32>
+        %76 = arith.addf %75, %cst : vector<1xf32>
+        %77 = arith.mulf %14, %36 : f32
+        %78 = vector.splat %77 : vector<1xf32>
+        %shuffleResult_48, %valid_49 = gpu.shuffle  xor %78, %c1_i32, %c64_i32 : vector<1xf32>
+        %79 = arith.addf %78, %shuffleResult_48 : vector<1xf32>
+        %shuffleResult_50, %valid_51 = gpu.shuffle  xor %79, %c2_i32, %c64_i32 : vector<1xf32>
+        %80 = arith.addf %79, %shuffleResult_50 : vector<1xf32>
+        %shuffleResult_52, %valid_53 = gpu.shuffle  xor %80, %c4_i32, %c64_i32 : vector<1xf32>
+        %81 = arith.addf %80, %shuffleResult_52 : vector<1xf32>
+        %shuffleResult_54, %valid_55 = gpu.shuffle  xor %81, %c8_i32, %c64_i32 : vector<1xf32>
+        %82 = arith.addf %81, %shuffleResult_54 : vector<1xf32>
+        %shuffleResult_56, %valid_57 = gpu.shuffle  xor %82, %c16_i32, %c64_i32 : vector<1xf32>
+        %83 = arith.addf %82, %shuffleResult_56 : vector<1xf32>
+        %84 = arith.addf %83, %cst : vector<1xf32>
+        %85 = arith.mulf %16, %36 : f32
+        %86 = vector.splat %85 : vector<1xf32>
+        %shuffleResult_58, %valid_59 = gpu.shuffle  xor %86, %c1_i32, %c64_i32 : vector<1xf32>
+        %87 = arith.addf %86, %shuffleResult_58 : vector<1xf32>
+        %shuffleResult_60, %valid_61 = gpu.shuffle  xor %87, %c2_i32, %c64_i32 : vector<1xf32>
+        %88 = arith.addf %87, %shuffleResult_60 : vector<1xf32>
+        %shuffleResult_62, %valid_63 = gpu.shuffle  xor %88, %c4_i32, %c64_i32 : vector<1xf32>
+        %89 = arith.addf %88, %shuffleResult_62 : vector<1xf32>
+        %shuffleResult_64, %valid_65 = gpu.shuffle  xor %89, %c8_i32, %c64_i32 : vector<1xf32>
+        %90 = arith.addf %89, %shuffleResult_64 : vector<1xf32>
+        %shuffleResult_66, %valid_67 = gpu.shuffle  xor %90, %c16_i32, %c64_i32 : vector<1xf32>
+        %91 = arith.addf %90, %shuffleResult_66 : vector<1xf32>
+        %92 = arith.addf %91, %cst : vector<1xf32>
+        %93 = arith.mulf %18, %36 : f32
+        %94 = vector.splat %93 : vector<1xf32>
+        %shuffleResult_68, %valid_69 = gpu.shuffle  xor %94, %c1_i32, %c64_i32 : vector<1xf32>
+        %95 = arith.addf %94, %shuffleResult_68 : vector<1xf32>
+        %shuffleResult_70, %valid_71 = gpu.shuffle  xor %95, %c2_i32, %c64_i32 : vector<1xf32>
+        %96 = arith.addf %95, %shuffleResult_70 : vector<1xf32>
+        %shuffleResult_72, %valid_73 = gpu.shuffle  xor %96, %c4_i32, %c64_i32 : vector<1xf32>
+        %97 = arith.addf %96, %shuffleResult_72 : vector<1xf32>
+        %shuffleResult_74, %valid_75 = gpu.shuffle  xor %97, %c8_i32, %c64_i32 : vector<1xf32>
+        %98 = arith.addf %97, %shuffleResult_74 : vector<1xf32>
+        %shuffleResult_76, %valid_77 = gpu.shuffle  xor %98, %c16_i32, %c64_i32 : vector<1xf32>
+        %99 = arith.addf %98, %shuffleResult_76 : vector<1xf32>
+        %100 = arith.addf %99, %cst : vector<1xf32>
+        %101 = arith.mulf %20, %36 : f32
+        %102 = vector.splat %101 : vector<1xf32>
+        %shuffleResult_78, %valid_79 = gpu.shuffle  xor %102, %c1_i32, %c64_i32 : vector<1xf32>
+        %103 = arith.addf %102, %shuffleResult_78 : vector<1xf32>
+        %shuffleResult_80, %valid_81 = gpu.shuffle  xor %103, %c2_i32, %c64_i32 : vector<1xf32>
+        %104 = arith.addf %103, %shuffleResult_80 : vector<1xf32>
+        %shuffleResult_82, %valid_83 = gpu.shuffle  xor %104, %c4_i32, %c64_i32 : vector<1xf32>
+        %105 = arith.addf %104, %shuffleResult_82 : vector<1xf32>
+        %shuffleResult_84, %valid_85 = gpu.shuffle  xor %105, %c8_i32, %c64_i32 : vector<1xf32>
+        %106 = arith.addf %105, %shuffleResult_84 : vector<1xf32>
+        %shuffleResult_86, %valid_87 = gpu.shuffle  xor %106, %c16_i32, %c64_i32 : vector<1xf32>
+        %107 = arith.addf %106, %shuffleResult_86 : vector<1xf32>
+        %108 = arith.addf %107, %cst : vector<1xf32>
+        %109 = arith.mulf %22, %36 : f32
+        %110 = vector.splat %109 : vector<1xf32>
+        %shuffleResult_88, %valid_89 = gpu.shuffle  xor %110, %c1_i32, %c64_i32 : vector<1xf32>
+        %111 = arith.addf %110, %shuffleResult_88 : vector<1xf32>
+        %shuffleResult_90, %valid_91 = gpu.shuffle  xor %111, %c2_i32, %c64_i32 : vector<1xf32>
+        %112 = arith.addf %111, %shuffleResult_90 : vector<1xf32>
+        %shuffleResult_92, %valid_93 = gpu.shuffle  xor %112, %c4_i32, %c64_i32 : vector<1xf32>
+        %113 = arith.addf %112, %shuffleResult_92 : vector<1xf32>
+        %shuffleResult_94, %valid_95 = gpu.shuffle  xor %113, %c8_i32, %c64_i32 : vector<1xf32>
+        %114 = arith.addf %113, %shuffleResult_94 : vector<1xf32>
+        %shuffleResult_96, %valid_97 = gpu.shuffle  xor %114, %c16_i32, %c64_i32 : vector<1xf32>
+        %115 = arith.addf %114, %shuffleResult_96 : vector<1xf32>
+        %116 = arith.addf %115, %cst : vector<1xf32>
+        %117 = arith.mulf %24, %36 : f32
+        %118 = vector.splat %117 : vector<1xf32>
+        %shuffleResult_98, %valid_99 = gpu.shuffle  xor %118, %c1_i32, %c64_i32 : vector<1xf32>
+        %119 = arith.addf %118, %shuffleResult_98 : vector<1xf32>
+        %shuffleResult_100, %valid_101 = gpu.shuffle  xor %119, %c2_i32, %c64_i32 : vector<1xf32>
+        %120 = arith.addf %119, %shuffleResult_100 : vector<1xf32>
+        %shuffleResult_102, %valid_103 = gpu.shuffle  xor %120, %c4_i32, %c64_i32 : vector<1xf32>
+        %121 = arith.addf %120, %shuffleResult_102 : vector<1xf32>
+        %shuffleResult_104, %valid_105 = gpu.shuffle  xor %121, %c8_i32, %c64_i32 : vector<1xf32>
+        %122 = arith.addf %121, %shuffleResult_104 : vector<1xf32>
+        %shuffleResult_106, %valid_107 = gpu.shuffle  xor %122, %c16_i32, %c64_i32 : vector<1xf32>
+        %123 = arith.addf %122, %shuffleResult_106 : vector<1xf32>
+        %124 = arith.addf %123, %cst : vector<1xf32>
+        %125 = arith.mulf %26, %36 : f32
+        %126 = vector.splat %125 : vector<1xf32>
+        %shuffleResult_108, %valid_109 = gpu.shuffle  xor %126, %c1_i32, %c64_i32 : vector<1xf32>
+        %127 = arith.addf %126, %shuffleResult_108 : vector<1xf32>
+        %shuffleResult_110, %valid_111 = gpu.shuffle  xor %127, %c2_i32, %c64_i32 : vector<1xf32>
+        %128 = arith.addf %127, %shuffleResult_110 : vector<1xf32>
+        %shuffleResult_112, %valid_113 = gpu.shuffle  xor %128, %c4_i32, %c64_i32 : vector<1xf32>
+        %129 = arith.addf %128, %shuffleResult_112 : vector<1xf32>
+        %shuffleResult_114, %valid_115 = gpu.shuffle  xor %129, %c8_i32, %c64_i32 : vector<1xf32>
+        %130 = arith.addf %129, %shuffleResult_114 : vector<1xf32>
+        %shuffleResult_116, %valid_117 = gpu.shuffle  xor %130, %c16_i32, %c64_i32 : vector<1xf32>
+        %131 = arith.addf %130, %shuffleResult_116 : vector<1xf32>
+        %132 = arith.addf %131, %cst : vector<1xf32>
+        %133 = arith.mulf %28, %36 : f32
+        %134 = vector.splat %133 : vector<1xf32>
+        %shuffleResult_118, %valid_119 = gpu.shuffle  xor %134, %c1_i32, %c64_i32 : vector<1xf32>
+        %135 = arith.addf %134, %shuffleResult_118 : vector<1xf32>
+        %shuffleResult_120, %valid_121 = gpu.shuffle  xor %135, %c2_i32, %c64_i32 : vector<1xf32>
+        %136 = arith.addf %135, %shuffleResult_120 : vector<1xf32>
+        %shuffleResult_122, %valid_123 = gpu.shuffle  xor %136, %c4_i32, %c64_i32 : vector<1xf32>
+        %137 = arith.addf %136, %shuffleResult_122 : vector<1xf32>
+        %shuffleResult_124, %valid_125 = gpu.shuffle  xor %137, %c8_i32, %c64_i32 : vector<1xf32>
+        %138 = arith.addf %137, %shuffleResult_124 : vector<1xf32>
+        %shuffleResult_126, %valid_127 = gpu.shuffle  xor %138, %c16_i32, %c64_i32 : vector<1xf32>
+        %139 = arith.addf %138, %shuffleResult_126 : vector<1xf32>
+        %140 = arith.addf %139, %cst : vector<1xf32>
+        %141 = arith.mulf %30, %36 : f32
+        %142 = vector.splat %141 : vector<1xf32>
+        %shuffleResult_128, %valid_129 = gpu.shuffle  xor %142, %c1_i32, %c64_i32 : vector<1xf32>
+        %143 = arith.addf %142, %shuffleResult_128 : vector<1xf32>
+        %shuffleResult_130, %valid_131 = gpu.shuffle  xor %143, %c2_i32, %c64_i32 : vector<1xf32>
+        %144 = arith.addf %143, %shuffleResult_130 : vector<1xf32>
+        %shuffleResult_132, %valid_133 = gpu.shuffle  xor %144, %c4_i32, %c64_i32 : vector<1xf32>
+        %145 = arith.addf %144, %shuffleResult_132 : vector<1xf32>
+        %shuffleResult_134, %valid_135 = gpu.shuffle  xor %145, %c8_i32, %c64_i32 : vector<1xf32>
+        %146 = arith.addf %145, %shuffleResult_134 : vector<1xf32>
+        %shuffleResult_136, %valid_137 = gpu.shuffle  xor %146, %c16_i32, %c64_i32 : vector<1xf32>
+        %147 = arith.addf %146, %shuffleResult_136 : vector<1xf32>
+        %148 = arith.addf %147, %cst : vector<1xf32>
+        %149 = arith.mulf %32, %36 : f32
+        %150 = vector.splat %149 : vector<1xf32>
+        %shuffleResult_138, %valid_139 = gpu.shuffle  xor %150, %c1_i32, %c64_i32 : vector<1xf32>
+        %151 = arith.addf %150, %shuffleResult_138 : vector<1xf32>
+        %shuffleResult_140, %valid_141 = gpu.shuffle  xor %151, %c2_i32, %c64_i32 : vector<1xf32>
+        %152 = arith.addf %151, %shuffleResult_140 : vector<1xf32>
+        %shuffleResult_142, %valid_143 = gpu.shuffle  xor %152, %c4_i32, %c64_i32 : vector<1xf32>
+        %153 = arith.addf %152, %shuffleResult_142 : vector<1xf32>
+        %shuffleResult_144, %valid_145 = gpu.shuffle  xor %153, %c8_i32, %c64_i32 : vector<1xf32>
+        %154 = arith.addf %153, %shuffleResult_144 : vector<1xf32>
+        %shuffleResult_146, %valid_147 = gpu.shuffle  xor %154, %c16_i32, %c64_i32 : vector<1xf32>
+        %155 = arith.addf %154, %shuffleResult_146 : vector<1xf32>
+        %156 = arith.addf %155, %cst : vector<1xf32>
+        %157 = arith.mulf %34, %36 : f32
+        %158 = vector.splat %157 : vector<1xf32>
+        %shuffleResult_148, %valid_149 = gpu.shuffle  xor %158, %c1_i32, %c64_i32 : vector<1xf32>
+        %159 = arith.addf %158, %shuffleResult_148 : vector<1xf32>
+        %shuffleResult_150, %valid_151 = gpu.shuffle  xor %159, %c2_i32, %c64_i32 : vector<1xf32>
+        %160 = arith.addf %159, %shuffleResult_150 : vector<1xf32>
+        %shuffleResult_152, %valid_153 = gpu.shuffle  xor %160, %c4_i32, %c64_i32 : vector<1xf32>
+        %161 = arith.addf %160, %shuffleResult_152 : vector<1xf32>
+        %shuffleResult_154, %valid_155 = gpu.shuffle  xor %161, %c8_i32, %c64_i32 : vector<1xf32>
+        %162 = arith.addf %161, %shuffleResult_154 : vector<1xf32>
+        %shuffleResult_156, %valid_157 = gpu.shuffle  xor %162, %c16_i32, %c64_i32 : vector<1xf32>
+        %163 = arith.addf %162, %shuffleResult_156 : vector<1xf32>
+        %164 = arith.addf %163, %cst : vector<1xf32>
+        %165 = stream.binding.subspan %arg2[%c0] : !stream.binding -> memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %166 = vector.load %165[%2, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %167 = vector.load %165[%5, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %168 = vector.load %165[%7, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %169 = vector.load %165[%9, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %170 = vector.load %165[%11, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %171 = vector.load %165[%13, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %172 = vector.load %165[%15, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %173 = vector.load %165[%17, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %174 = vector.load %165[%19, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %175 = vector.load %165[%21, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %176 = vector.load %165[%23, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %177 = vector.load %165[%25, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %178 = vector.load %165[%27, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %179 = vector.load %165[%29, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %180 = vector.load %165[%31, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %181 = vector.load %165[%33, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %182 = stream.binding.subspan %arg4[%c0] : !stream.binding -> memref<32x1xf32, strided<[1, 1], offset: ?>>
+        %183 = vector.extract %166[0] : i32 from vector<1xi32>
+        %184 = arith.index_cast %183 : i32 to index
+        %185 = vector.extract %44[0] : f32 from vector<1xf32>
+        %186 = memref.atomic_rmw maximumf %185, %182[%184, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %187 = vector.extract %167[0] : i32 from vector<1xi32>
+        %188 = arith.index_cast %187 : i32 to index
+        %189 = vector.extract %52[0] : f32 from vector<1xf32>
+        %190 = memref.atomic_rmw maximumf %189, %182[%188, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %191 = vector.extract %168[0] : i32 from vector<1xi32>
+        %192 = arith.index_cast %191 : i32 to index
+        %193 = vector.extract %60[0] : f32 from vector<1xf32>
+        %194 = memref.atomic_rmw maximumf %193, %182[%192, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %195 = vector.extract %169[0] : i32 from vector<1xi32>
+        %196 = arith.index_cast %195 : i32 to index
+        %197 = vector.extract %68[0] : f32 from vector<1xf32>
+        %198 = memref.atomic_rmw maximumf %197, %182[%196, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %199 = vector.extract %170[0] : i32 from vector<1xi32>
+        %200 = arith.index_cast %199 : i32 to index
+        %201 = vector.extract %76[0] : f32 from vector<1xf32>
+        %202 = memref.atomic_rmw maximumf %201, %182[%200, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %203 = vector.extract %171[0] : i32 from vector<1xi32>
+        %204 = arith.index_cast %203 : i32 to index
+        %205 = vector.extract %84[0] : f32 from vector<1xf32>
+        %206 = memref.atomic_rmw maximumf %205, %182[%204, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %207 = vector.extract %172[0] : i32 from vector<1xi32>
+        %208 = arith.index_cast %207 : i32 to index
+        %209 = vector.extract %92[0] : f32 from vector<1xf32>
+        %210 = memref.atomic_rmw maximumf %209, %182[%208, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %211 = vector.extract %173[0] : i32 from vector<1xi32>
+        %212 = arith.index_cast %211 : i32 to index
+        %213 = vector.extract %100[0] : f32 from vector<1xf32>
+        %214 = memref.atomic_rmw maximumf %213, %182[%212, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %215 = vector.extract %174[0] : i32 from vector<1xi32>
+        %216 = arith.index_cast %215 : i32 to index
+        %217 = vector.extract %108[0] : f32 from vector<1xf32>
+        %218 = memref.atomic_rmw maximumf %217, %182[%216, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %219 = vector.extract %175[0] : i32 from vector<1xi32>
+        %220 = arith.index_cast %219 : i32 to index
+        %221 = vector.extract %116[0] : f32 from vector<1xf32>
+        %222 = memref.atomic_rmw maximumf %221, %182[%220, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %223 = vector.extract %176[0] : i32 from vector<1xi32>
+        %224 = arith.index_cast %223 : i32 to index
+        %225 = vector.extract %124[0] : f32 from vector<1xf32>
+        %226 = memref.atomic_rmw maximumf %225, %182[%224, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %227 = vector.extract %177[0] : i32 from vector<1xi32>
+        %228 = arith.index_cast %227 : i32 to index
+        %229 = vector.extract %132[0] : f32 from vector<1xf32>
+        %230 = memref.atomic_rmw maximumf %229, %182[%228, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %231 = vector.extract %178[0] : i32 from vector<1xi32>
+        %232 = arith.index_cast %231 : i32 to index
+        %233 = vector.extract %140[0] : f32 from vector<1xf32>
+        %234 = memref.atomic_rmw maximumf %233, %182[%232, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %235 = vector.extract %179[0] : i32 from vector<1xi32>
+        %236 = arith.index_cast %235 : i32 to index
+        %237 = vector.extract %148[0] : f32 from vector<1xf32>
+        %238 = memref.atomic_rmw maximumf %237, %182[%236, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %239 = vector.extract %180[0] : i32 from vector<1xi32>
+        %240 = arith.index_cast %239 : i32 to index
+        %241 = vector.extract %156[0] : f32 from vector<1xf32>
+        %242 = memref.atomic_rmw maximumf %241, %182[%240, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %243 = vector.extract %181[0] : i32 from vector<1xi32>
+        %244 = arith.index_cast %243 : i32 to index
+        %245 = vector.extract %164[0] : f32 from vector<1xf32>
+        %246 = memref.atomic_rmw maximumf %245, %182[%244, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
+        %247 = vector.load %182[%184, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %248 = vector.load %182[%188, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %249 = vector.load %182[%192, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %250 = vector.load %182[%196, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %251 = vector.load %182[%200, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %252 = vector.load %182[%204, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %253 = vector.load %182[%208, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %254 = vector.load %182[%212, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %255 = vector.load %182[%216, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %256 = vector.load %182[%220, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %257 = vector.load %182[%224, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %258 = vector.load %182[%228, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %259 = vector.load %182[%232, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %260 = vector.load %182[%236, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %261 = vector.load %182[%240, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %262 = vector.load %182[%244, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %263 = arith.subf %44, %247 : vector<1xf32>
+        %264 = arith.subf %52, %248 : vector<1xf32>
+        %265 = arith.subf %60, %249 : vector<1xf32>
+        %266 = arith.subf %68, %250 : vector<1xf32>
+        %267 = arith.subf %76, %251 : vector<1xf32>
+        %268 = arith.subf %84, %252 : vector<1xf32>
+        %269 = arith.subf %92, %253 : vector<1xf32>
+        %270 = arith.subf %100, %254 : vector<1xf32>
+        %271 = arith.subf %108, %255 : vector<1xf32>
+        %272 = arith.subf %116, %256 : vector<1xf32>
+        %273 = arith.subf %124, %257 : vector<1xf32>
+        %274 = arith.subf %132, %258 : vector<1xf32>
+        %275 = arith.subf %140, %259 : vector<1xf32>
+        %276 = arith.subf %148, %260 : vector<1xf32>
+        %277 = arith.subf %156, %261 : vector<1xf32>
+        %278 = arith.subf %164, %262 : vector<1xf32>
+        %279 = math.exp %263 : vector<1xf32>
+        %280 = math.exp %264 : vector<1xf32>
+        %281 = math.exp %265 : vector<1xf32>
+        %282 = math.exp %266 : vector<1xf32>
+        %283 = math.exp %267 : vector<1xf32>
+        %284 = math.exp %268 : vector<1xf32>
+        %285 = math.exp %269 : vector<1xf32>
+        %286 = math.exp %270 : vector<1xf32>
+        %287 = math.exp %271 : vector<1xf32>
+        %288 = math.exp %272 : vector<1xf32>
+        %289 = math.exp %273 : vector<1xf32>
+        %290 = math.exp %274 : vector<1xf32>
+        %291 = math.exp %275 : vector<1xf32>
+        %292 = math.exp %276 : vector<1xf32>
+        %293 = math.exp %277 : vector<1xf32>
+        %294 = math.exp %278 : vector<1xf32>
+        %295 = stream.binding.subspan %arg7[%c0] : !stream.binding -> memref<32x1xf32, strided<[1, 1], offset: ?>>
+        vector.store %279, %295[%184, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %280, %295[%188, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %281, %295[%192, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %282, %295[%196, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %283, %295[%200, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %284, %295[%204, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %285, %295[%208, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %286, %295[%212, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %287, %295[%216, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %288, %295[%220, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %289, %295[%224, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %290, %295[%228, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %291, %295[%232, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %292, %295[%236, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %293, %295[%240, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        vector.store %294, %295[%244, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        return
+      }
+    }
+  }
+  func.func @isolated_benchmark(%arg0: tensor<32x32xf32>, %arg1: tensor<1x32xf32>, %arg2: tensor<32x1xi32>, %arg3: tensor<32x32xf32>, %arg4: tensor<32x1xf32>, %arg5: tensor<32x1xf32>, %arg6: tensor<32x32xf32>, %arg7: tensor<32x1xf32>) -> tensor<32x1xf32> {
+    %0 = flow.dispatch @neighbor_attention::@neighbor_attention(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7) : (tensor<32x32xf32>, tensor<1x32xf32>, tensor<32x1xi32>, tensor<32x32xf32>, tensor<32x1xf32>, tensor<32x1xf32>, tensor<32x32xf32>, tensor<32x1xf32>) -> %arg7
+    return %0 : tensor<32x1xf32>
+  }
+}
+
+Input a:
+tensor([[0.0000e+00, 1.0000e+00, 2.0000e+00,  ..., 2.9000e+01, 3.0000e+01,
+         3.1000e+01],
+        [3.2000e+01, 3.3000e+01, 3.4000e+01,  ..., 6.1000e+01, 6.2000e+01,
+         6.3000e+01],
+        [6.4000e+01, 6.5000e+01, 6.6000e+01,  ..., 9.3000e+01, 9.4000e+01,
+         9.5000e+01],
+        ...,
+        [9.2800e+02, 9.2900e+02, 9.3000e+02,  ..., 9.5700e+02, 9.5800e+02,
+         9.5900e+02],
+        [9.6000e+02, 9.6100e+02, 9.6200e+02,  ..., 9.8900e+02, 9.9000e+02,
+         9.9100e+02],
+        [9.9200e+02, 9.9300e+02, 9.9400e+02,  ..., 1.0210e+03, 1.0220e+03,
+         1.0230e+03]])
+Output:
+tensor([[1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [1.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.]])
+torch_output:
+tensor([[0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [1.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [0.],
+        [1.],
+        [0.],
+        [1.],
+        [1.],
+        [0.],
+        [1.],
+        [0.],
+        [1.],
+        [0.],
+        [0.],
+        [1.],
+        [1.],
+        [1.],
+        [0.],
+        [1.]], device='cuda:0')
+.
+
+============================== 1 passed in 11.65s ==============================
