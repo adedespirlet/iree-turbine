@@ -5,7 +5,7 @@ configfile: setup.cfg
 plugins: xdist-3.5.0
 collected 1 item
 
-tests/kernel/wave/attention/pifold_neighbour_attention_test.py #map = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32)>
+tests/kernel/wave/attention/neighbour_attention_debug_test.py #map = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32)>
 #map1 = affine_map<()[s0] -> (s0 mod 32)>
 #map2 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 2)>
 #map3 = affine_map<()[s0] -> ((s0 floordiv 64) * 32 + (s0 mod 64) floordiv 32 + 4)>
@@ -30,7 +30,7 @@ module attributes {transform.with_named_sequence} {
       stream.return %c1, %c1, %c1 : index, index, index
     }
     builtin.module {
-      func.func @neighbor_attention(%arg0: !stream.binding, %arg1: !stream.binding, %arg2: !stream.binding, %arg3: !stream.binding, %arg4: !stream.binding, %arg5: !stream.binding, %arg6: !stream.binding, %arg7: !stream.binding) attributes {translation_info = #translation} {
+      func.func @neighbor_attention(%arg0: !stream.binding, %arg1: !stream.binding, %arg2: !stream.binding, %arg3: !stream.binding, %arg4: !stream.binding) attributes {translation_info = #translation} {
         %c16_i32 = arith.constant 16 : i32
         %c8_i32 = arith.constant 8 : i32
         %c4_i32 = arith.constant 4 : i32
@@ -286,158 +286,61 @@ module attributes {transform.with_named_sequence} {
         %163 = arith.addf %162, %shuffleResult_156 : vector<1xf32>
         %164 = arith.addf %163, %cst : vector<1xf32>
         %165 = stream.binding.subspan %arg2[%c0] : !stream.binding -> memref<32x1xi32, strided<[1, 1], offset: ?>>
-        %166 = vector.load %165[%2, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %167 = vector.load %165[%5, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %168 = vector.load %165[%7, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %169 = vector.load %165[%9, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %170 = vector.load %165[%11, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %171 = vector.load %165[%13, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %172 = vector.load %165[%15, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %173 = vector.load %165[%17, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %174 = vector.load %165[%19, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %175 = vector.load %165[%21, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %176 = vector.load %165[%23, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %177 = vector.load %165[%25, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %178 = vector.load %165[%27, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %179 = vector.load %165[%29, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %180 = vector.load %165[%31, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
-        %181 = vector.load %165[%33, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>, vector<1xi32>
+        %166 = memref.load %165[%2, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %167 = memref.load %165[%5, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %168 = memref.load %165[%7, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %169 = memref.load %165[%9, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %170 = memref.load %165[%11, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %171 = memref.load %165[%13, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %172 = memref.load %165[%15, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %173 = memref.load %165[%17, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %174 = memref.load %165[%19, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %175 = memref.load %165[%21, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %176 = memref.load %165[%23, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %177 = memref.load %165[%25, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %178 = memref.load %165[%27, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %179 = memref.load %165[%29, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %180 = memref.load %165[%31, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
+        %181 = memref.load %165[%33, %c0] : memref<32x1xi32, strided<[1, 1], offset: ?>>
         %182 = stream.binding.subspan %arg4[%c0] : !stream.binding -> memref<32x1xf32, strided<[1, 1], offset: ?>>
-        %183 = vector.extract %166[0] : i32 from vector<1xi32>
-        %184 = arith.index_cast %183 : i32 to index
-        %185 = vector.extract %44[0] : f32 from vector<1xf32>
-        %186 = memref.atomic_rmw maximumf %185, %182[%184, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %187 = vector.extract %167[0] : i32 from vector<1xi32>
-        %188 = arith.index_cast %187 : i32 to index
-        %189 = vector.extract %52[0] : f32 from vector<1xf32>
-        %190 = memref.atomic_rmw maximumf %189, %182[%188, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %191 = vector.extract %168[0] : i32 from vector<1xi32>
-        %192 = arith.index_cast %191 : i32 to index
-        %193 = vector.extract %60[0] : f32 from vector<1xf32>
-        %194 = memref.atomic_rmw maximumf %193, %182[%192, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %195 = vector.extract %169[0] : i32 from vector<1xi32>
-        %196 = arith.index_cast %195 : i32 to index
-        %197 = vector.extract %68[0] : f32 from vector<1xf32>
-        %198 = memref.atomic_rmw maximumf %197, %182[%196, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %199 = vector.extract %170[0] : i32 from vector<1xi32>
-        %200 = arith.index_cast %199 : i32 to index
-        %201 = vector.extract %76[0] : f32 from vector<1xf32>
-        %202 = memref.atomic_rmw maximumf %201, %182[%200, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %203 = vector.extract %171[0] : i32 from vector<1xi32>
-        %204 = arith.index_cast %203 : i32 to index
-        %205 = vector.extract %84[0] : f32 from vector<1xf32>
-        %206 = memref.atomic_rmw maximumf %205, %182[%204, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %207 = vector.extract %172[0] : i32 from vector<1xi32>
-        %208 = arith.index_cast %207 : i32 to index
-        %209 = vector.extract %92[0] : f32 from vector<1xf32>
-        %210 = memref.atomic_rmw maximumf %209, %182[%208, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %211 = vector.extract %173[0] : i32 from vector<1xi32>
-        %212 = arith.index_cast %211 : i32 to index
-        %213 = vector.extract %100[0] : f32 from vector<1xf32>
-        %214 = memref.atomic_rmw maximumf %213, %182[%212, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %215 = vector.extract %174[0] : i32 from vector<1xi32>
-        %216 = arith.index_cast %215 : i32 to index
-        %217 = vector.extract %108[0] : f32 from vector<1xf32>
-        %218 = memref.atomic_rmw maximumf %217, %182[%216, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %219 = vector.extract %175[0] : i32 from vector<1xi32>
-        %220 = arith.index_cast %219 : i32 to index
-        %221 = vector.extract %116[0] : f32 from vector<1xf32>
-        %222 = memref.atomic_rmw maximumf %221, %182[%220, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %223 = vector.extract %176[0] : i32 from vector<1xi32>
-        %224 = arith.index_cast %223 : i32 to index
-        %225 = vector.extract %124[0] : f32 from vector<1xf32>
-        %226 = memref.atomic_rmw maximumf %225, %182[%224, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %227 = vector.extract %177[0] : i32 from vector<1xi32>
-        %228 = arith.index_cast %227 : i32 to index
-        %229 = vector.extract %132[0] : f32 from vector<1xf32>
-        %230 = memref.atomic_rmw maximumf %229, %182[%228, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %231 = vector.extract %178[0] : i32 from vector<1xi32>
-        %232 = arith.index_cast %231 : i32 to index
-        %233 = vector.extract %140[0] : f32 from vector<1xf32>
-        %234 = memref.atomic_rmw maximumf %233, %182[%232, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %235 = vector.extract %179[0] : i32 from vector<1xi32>
-        %236 = arith.index_cast %235 : i32 to index
-        %237 = vector.extract %148[0] : f32 from vector<1xf32>
-        %238 = memref.atomic_rmw maximumf %237, %182[%236, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %239 = vector.extract %180[0] : i32 from vector<1xi32>
-        %240 = arith.index_cast %239 : i32 to index
-        %241 = vector.extract %156[0] : f32 from vector<1xf32>
-        %242 = memref.atomic_rmw maximumf %241, %182[%240, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %243 = vector.extract %181[0] : i32 from vector<1xi32>
-        %244 = arith.index_cast %243 : i32 to index
-        %245 = vector.extract %164[0] : f32 from vector<1xf32>
-        %246 = memref.atomic_rmw maximumf %245, %182[%244, %c0] : (f32, memref<32x1xf32, strided<[1, 1], offset: ?>>) -> f32
-        %247 = vector.load %182[%184, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %248 = vector.load %182[%188, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %249 = vector.load %182[%192, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %250 = vector.load %182[%196, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %251 = vector.load %182[%200, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %252 = vector.load %182[%204, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %253 = vector.load %182[%208, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %254 = vector.load %182[%212, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %255 = vector.load %182[%216, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %256 = vector.load %182[%220, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %257 = vector.load %182[%224, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %258 = vector.load %182[%228, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %259 = vector.load %182[%232, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %260 = vector.load %182[%236, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %261 = vector.load %182[%240, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %262 = vector.load %182[%244, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        %263 = arith.subf %44, %247 : vector<1xf32>
-        %264 = arith.subf %52, %248 : vector<1xf32>
-        %265 = arith.subf %60, %249 : vector<1xf32>
-        %266 = arith.subf %68, %250 : vector<1xf32>
-        %267 = arith.subf %76, %251 : vector<1xf32>
-        %268 = arith.subf %84, %252 : vector<1xf32>
-        %269 = arith.subf %92, %253 : vector<1xf32>
-        %270 = arith.subf %100, %254 : vector<1xf32>
-        %271 = arith.subf %108, %255 : vector<1xf32>
-        %272 = arith.subf %116, %256 : vector<1xf32>
-        %273 = arith.subf %124, %257 : vector<1xf32>
-        %274 = arith.subf %132, %258 : vector<1xf32>
-        %275 = arith.subf %140, %259 : vector<1xf32>
-        %276 = arith.subf %148, %260 : vector<1xf32>
-        %277 = arith.subf %156, %261 : vector<1xf32>
-        %278 = arith.subf %164, %262 : vector<1xf32>
-        %279 = math.exp %263 : vector<1xf32>
-        %280 = math.exp %264 : vector<1xf32>
-        %281 = math.exp %265 : vector<1xf32>
-        %282 = math.exp %266 : vector<1xf32>
-        %283 = math.exp %267 : vector<1xf32>
-        %284 = math.exp %268 : vector<1xf32>
-        %285 = math.exp %269 : vector<1xf32>
-        %286 = math.exp %270 : vector<1xf32>
-        %287 = math.exp %271 : vector<1xf32>
-        %288 = math.exp %272 : vector<1xf32>
-        %289 = math.exp %273 : vector<1xf32>
-        %290 = math.exp %274 : vector<1xf32>
-        %291 = math.exp %275 : vector<1xf32>
-        %292 = math.exp %276 : vector<1xf32>
-        %293 = math.exp %277 : vector<1xf32>
-        %294 = math.exp %278 : vector<1xf32>
-        %295 = stream.binding.subspan %arg7[%c0] : !stream.binding -> memref<32x1xf32, strided<[1, 1], offset: ?>>
-        vector.store %279, %295[%184, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %280, %295[%188, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %281, %295[%192, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %282, %295[%196, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %283, %295[%200, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %284, %295[%204, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %285, %295[%208, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %286, %295[%212, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %287, %295[%216, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %288, %295[%220, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %289, %295[%224, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %290, %295[%228, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %291, %295[%232, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %292, %295[%236, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %293, %295[%240, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
-        vector.store %294, %295[%244, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %183 = arith.index_cast %166 : i32 to index
+        vector.store %44, %182[%183, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %184 = arith.index_cast %167 : i32 to index
+        vector.store %52, %182[%184, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %185 = arith.index_cast %168 : i32 to index
+        vector.store %60, %182[%185, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %186 = arith.index_cast %169 : i32 to index
+        vector.store %68, %182[%186, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %187 = arith.index_cast %170 : i32 to index
+        vector.store %76, %182[%187, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %188 = arith.index_cast %171 : i32 to index
+        vector.store %84, %182[%188, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %189 = arith.index_cast %172 : i32 to index
+        vector.store %92, %182[%189, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %190 = arith.index_cast %173 : i32 to index
+        vector.store %100, %182[%190, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %191 = arith.index_cast %174 : i32 to index
+        vector.store %108, %182[%191, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %192 = arith.index_cast %175 : i32 to index
+        vector.store %116, %182[%192, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %193 = arith.index_cast %176 : i32 to index
+        vector.store %124, %182[%193, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %194 = arith.index_cast %177 : i32 to index
+        vector.store %132, %182[%194, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %195 = arith.index_cast %178 : i32 to index
+        vector.store %140, %182[%195, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %196 = arith.index_cast %179 : i32 to index
+        vector.store %148, %182[%196, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %197 = arith.index_cast %180 : i32 to index
+        vector.store %156, %182[%197, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
+        %198 = arith.index_cast %181 : i32 to index
+        vector.store %164, %182[%198, %c0] : memref<32x1xf32, strided<[1, 1], offset: ?>>, vector<1xf32>
         return
       }
     }
   }
-  func.func @isolated_benchmark(%arg0: tensor<32x32xf32>, %arg1: tensor<1x32xf32>, %arg2: tensor<32x1xi32>, %arg3: tensor<32x32xf32>, %arg4: tensor<32x1xf32>, %arg5: tensor<32x1xf32>, %arg6: tensor<32x32xf32>, %arg7: tensor<32x1xf32>) -> tensor<32x1xf32> {
-    %0 = flow.dispatch @neighbor_attention::@neighbor_attention(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7) : (tensor<32x32xf32>, tensor<1x32xf32>, tensor<32x1xi32>, tensor<32x32xf32>, tensor<32x1xf32>, tensor<32x1xf32>, tensor<32x32xf32>, tensor<32x1xf32>) -> %arg7
+  func.func @isolated_benchmark(%arg0: tensor<32x32xf32>, %arg1: tensor<1x32xf32>, %arg2: tensor<32x1xi32>, %arg3: tensor<32x1xf32>, %arg4: tensor<32x1xf32>) -> tensor<32x1xf32> {
+    %0 = flow.dispatch @neighbor_attention::@neighbor_attention(%arg0, %arg1, %arg2, %arg3, %arg4) : (tensor<32x32xf32>, tensor<1x32xf32>, tensor<32x1xi32>, tensor<32x1xf32>, tensor<32x1xf32>) -> %arg4
     return %0 : tensor<32x1xf32>
   }
 }
@@ -457,38 +360,38 @@ tensor([[0.0000e+00, 1.0000e+00, 2.0000e+00,  ..., 2.9000e+01, 3.0000e+01,
         [9.9200e+02, 9.9300e+02, 9.9400e+02,  ..., 1.0210e+03, 1.0220e+03,
          1.0230e+03]])
 Output:
-tensor([[1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [1.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.],
-        [0.]])
+tensor([[20976.],
+        [31216.],
+        [12784.],
+        [29168.],
+        [11760.],
+        [32240.],
+        [25072.],
+        [27120.],
+        [30192.],
+        [23024.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.],
+        [    0.]])
 torch_output:
 tensor([[0.],
         [0.],
@@ -502,6 +405,9 @@ tensor([[0.],
         [0.],
         [0.],
         [1.],
+        [1.],
+        [0.],
+        [0.],
         [0.],
         [0.],
         [0.],
@@ -510,18 +416,15 @@ tensor([[0.],
         [1.],
         [0.],
         [1.],
-        [1.],
         [0.],
         [1.],
         [0.],
         [1.],
         [0.],
-        [0.],
         [1.],
         [1.],
         [1.],
-        [0.],
         [1.]], device='cuda:0')
 .
 
-============================== 1 passed in 11.65s ==============================
+============================== 1 passed in 9.18s ===============================
